@@ -1,0 +1,597 @@
+---
+title: "Census Bilingualism Analysis"
+output: html_notebook
+---
+author: Esther Schott
+please email esther.schott@mail.concordia.ca if you have any questions
+see poster created from this script: https://osf.io/4gekn/
+
+# 1. Preparation Steps
+## 1.1. load packages
+```{r}
+library(tidyverse)
+library(foreign) # for reading in SPSS files
+library(cowplot)
+library(viridis)
+library(janitor)
+
+# for map stuff
+library(rworldmap)
+library(ggmap)
+library(rgdal)
+library(maps)
+library(scales)
+# for circle plots
+# install.packages("packcircles")
+library(packcircles)
+```
+
+## 1.2. function necessary to read in stuff
+see https://dadoseteorias.wordpress.com/2017/04/29/read-spss-duplicated-levels/
+for more info
+```{r}
+Int2Factor <- function(x)
+{
+    if(!is.null(attr(x, "value.labels"))){
+        vlab <- attr(x, "value.labels")
+        if(sum(duplicated(vlab)) > 0)
+            cat("Duplicated levels:", vlab, "\n")
+        else if(sum(duplicated(names(vlab))) > 0)
+            cat("Duplicated labels:",
+                names(vlab)[duplicated(names(vlab))], "\n")
+        else
+            x <- factor(x, levels = as.numeric(vlab),
+                        labels = names(vlab))
+    }
+    x
+}
+
+
+```
+
+
+## 2.0. individuals file preparation
+### 2.0.1. read in invididuals file
+
+```{r}
+raw_idata = read.spss("01_datasets/NHS-99M001X-E-2011-pumf-individuals_F1.sav", to.data.frame = T, use.value.labels = F)
+
+
+# convert strings to factors 
+raw_idata <- lapply(raw_idata, Int2Factor)
+# convert list to dataframe
+raw_idata <- as.data.frame(raw_idata, stringsAsFactors = FALSE)
+
+# select which variables are necessary for our analysis
+variables.keep = c("PR","CMA", # location: province & metropolitain area
+                   "AGEGRP","PKID0_1", "PKID2_5", # number of children between 0 and 1, and 2 and 5
+                   "HLAEN","HLAFR","HLANO", # home language part A
+                   "HLBEN","HLBFR","HLBNO") #home language part B
+
+idata_short = raw_idata %>% select(variables.keep)
+idata_short$Child0_1 = factor(idata_short$PKID0_1, labels=c("1+","0"))
+idata_short$Child2_5 = factor(idata_short$PKID2_5, labels=c("1+","0"))
+
+# create adult variable... 
+idata_short$adult = ifelse(as.integer(idata_short$AGEGRP)<16, "adult","child")
+
+
+
+
+```
+### 2.0.2. change factor levels & variable names for language variables
+
+```{r}
+## please note: I am using a hack here where I convert all of the "No" answers to NA - makes it much easier to count how many languages are observed overall and makes it easier to combine the languages to get language combinations. not ideal if we want to report number of missing values???
+
+
+# change factor levels for part a (most often)
+idata_short$HLA_En = factor(idata_short$HLAEN, labels= c(T,F))
+levels(idata_short$HLA_En) <- list(English = "TRUE",N="FALSE")
+levels(idata_short$HLA_En)[levels(idata_short$HLA_En)=='N'] <- NA
+
+
+idata_short$HLA_Fr = factor(idata_short$HLAFR, labels= c(T,F))
+levels(idata_short$HLA_Fr) <- list(French = "TRUE",N="FALSE")
+levels(idata_short$HLA_Fr)[levels(idata_short$HLA_Fr)=='N'] <- NA
+
+
+idata_short$HLA_Oth = factor(idata_short$HLANO)
+levels(idata_short$HLA_Oth)[levels(idata_short$HLA_Oth)=='No non-official language'] <- NA
+levels(idata_short$HLA_Oth)[levels(idata_short$HLA_Oth)=='All other languages'] <- "Other"
+
+# change for question part b (regular use)
+idata_short$HLB_En = factor(idata_short$HLBEN, labels= c(T,F))
+levels(idata_short$HLB_En) <- list(English = "TRUE",N="FALSE")
+levels(idata_short$HLB_En)[levels(idata_short$HLB_En)=='N'] <- NA
+
+idata_short$HLB_Fr = factor(idata_short$HLBFR, labels= c(T,F))
+levels(idata_short$HLB_Fr) <- list(French = "TRUE",N="FALSE")
+levels(idata_short$HLB_Fr)[levels(idata_short$HLB_Fr)=='N'] <- NA
+
+
+idata_short$HLB_Oth = factor(idata_short$HLBNO, labels = c(T, F))
+levels(idata_short$HLB_Oth) <- list(Other = "TRUE",N="FALSE")
+levels(idata_short$HLB_Oth)[levels(idata_short$HLB_Oth)=='N'] <- NA
+
+
+```
+
+
+###2.0.3. create bilingualism variable
+
+```{r}
+idata_short = idata_short %>%
+  # calculate number of columns that are not NA out of the 6 language variables
+mutate(Nlang_individual = rowSums(!is.na(data.frame(HLA_En, HLA_Fr, HLA_Oth, HLB_En, HLB_Fr, HLB_Oth))),
+       # paste together information about the language pairs observed
+  LangPair_individual = apply(data.frame(HLA_En, HLB_En, HLA_Fr, HLB_Fr, HLA_Oth, HLB_Oth), 1, function(x) paste(x[!is.na(x)], collapse = "_"))) %>%
+  mutate(LangGroup_individual = 
+           case_when(Nlang_individual == 0 ~ NA_character_,
+                     Nlang_individual == 1 ~ "One Language",
+                     Nlang_individual > 1 ~ "Two or more",
+                     TRUE ~ NA_character_))
+
+```
+
+
+### 2.0.4. geographical location
+```{r}
+idata_short$gma.interest = ifelse(idata_short$CMA %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary"),as.character(idata_short$CMA), NA)
+```
+ 
+
+
+
+# 2. Individuals dataset: children only
+## 2.1.dataset description
+### 2.1.1. summary tables: children across canada
+check how distributions over province and metropolitain areas are
+```{r}
+
+idata_child = idata_short %>%
+  filter(PKID0_1 =="One or more" | PKID2_5 =="One or more" )%>%
+  filter(adult=="adult")
+
+
+idata_child %>% group_by(PR, CMA) %>%
+  summarize(N=n()) %>% 
+  spread(PR, N)
+
+idata_child %>% group_by(PR) %>%
+  summarize(N=n())
+
+# some provinces have  few data points. can probably concentrate on BC, Alberta, Ontario, Quebec
+
+
+
+# top metropolitain areas
+idata_child %>% group_by(CMA) %>%
+   summarize(N=n()) %>%
+  arrange(-N)
+# top metropolitain areas are: Toronto, Montréal, Vancouver Calgary, Ottawa - Gatineau, Edmonton (cutoff could be 5000 individuals?)
+
+```
+## 2.2. bilingualism in children in individuals dataset
+### 2.2.1. summary table: bilingual children across canada
+
+```{r}
+idata_short %>% filter(adult == "child") %>%
+  group_by(AGEGRP, LangGroup_individual) %>%
+  summarize(N=n()) %>%
+  spread(LangGroup_individual, N) %>%
+  clean_names() %>%
+  mutate(total = one_language+two_or_more, percent = two_or_more/total)
+
+
+```
+
+### 2.2.2 summary tables: bilingual children under 6yo by province & metropolitan area
+```{r}
+idata_short %>% filter(AGEGRP == "0 to 4 years"| AGEGRP =="5 to 6 years") %>%
+  group_by(gma.interest, LangGroup_individual) %>%
+  summarize(N=n()) %>%
+  spread(LangGroup_individual, N) %>%
+  clean_names() %>%
+  mutate(total = one_language+two_or_more, percent = round(two_or_more/total,3)) 
+
+```
+
+
+## 2.3. summary tables: number of bilingual adults living with a child under 5
+
+```{r}
+
+
+idata_child %>%
+  filter(Child0_1 == "1+"  ) %>%
+  group_by(LangGroup_individual) %>%
+  summarize(Count = n())%>%
+  mutate(           Percent = Count/sum(Count))
+
+# broken down by key metropolotain areas
+
+idata_child %>%
+  filter(!is.na(gma.interest)& Child0_1 == "1+" |Child2_5=="1+") %>%
+  group_by( gma.interest, LangGroup_individual) %>%
+  summarize(Count = n())%>%
+  mutate(           Percent = Count/sum(Count)) 
+  
+
+
+# need to investigate what to do with these NA in other language
+idata_child %>% filter(is.na(LangGroup)) %>% 
+  group_by(LangPair_simplified) %>% 
+  summarize(count=n())
+
+# look at 2-5 year olds
+idata_child %>% 
+  filter(Child2_5 == "1+") %>%
+  group_by(LangGroupBil) %>%
+  summarize(Count = n())  %>%
+  mutate(           Percent = Count/sum(Count))
+
+# these look relatively the same as the one-year olds, focus on the one-year olds becuase they are our population of interest and 2-5 year olds likely get more exposure outside of the house (not captured in this survey)
+```
+
+
+#3.  Households dataset
+## 3.1. read in dataset & data cleaning
+```{r}
+# need to change to reading in factor solution as above
+raw_hdata = read.spss("01_datasets/NHS-99M002X-E-2011-pumf-hierarchical_F1.sav",to.data.frame=T, use.value.labels = F)
+
+
+# convert strings to factors 
+raw_hdata <- lapply(raw_hdata, Int2Factor)
+# convert list to dataframe
+raw_hdata <- as.data.frame(raw_hdata, stringsAsFactors = FALSE)
+
+# select which variables are necessary for our analysis
+variables.hkeep = c("HH_ID","PP_ID",
+  "PR","CMA", # location: province & metropolitain area
+                   "AGEGRP",  # age of person
+                   "HLAEN","HLAFR","HLANO", # home language part A
+                   "HLBEN","HLBFR","HLBNO") #home language part B
+hdata_short = raw_hdata %>% select(variables.hkeep)
+
+```
+
+## 3.2. look at only households with children 9 and under
+
+```{r}
+# create a variable that says whether child younger than 10 lives in household
+
+
+hdata_short = hdata_short %>% 
+  mutate(Child0_9 = ifelse(AGEGRP == "0 to 9 years", 1,0)) %>%
+    group_by(HH_ID) %>%
+  mutate(Child0_9_sum = sum(Child0_9))
+
+```
+
+## 3.3. refactor  language variables for easier coding
+```{r}
+## please note: I am using a hack here where I convert all of the "No" answers to NA - makes it much easier to count how many languages are observed overall and makes it easier to combine the languages to get language combinations. not ideal if we want to report number of missing values???
+
+
+# change factor levels for part a (most often)
+hdata_short$HLA_En = factor(hdata_short$HLAEN, labels= c(T,F))
+levels(hdata_short$HLA_En) <- list(English = "TRUE",N="FALSE")
+levels(hdata_short$HLA_En)[levels(hdata_short$HLA_En)=='N'] <- NA
+
+
+hdata_short$HLA_Fr = factor(hdata_short$HLAFR, labels= c(T,F))
+levels(hdata_short$HLA_Fr) <- list(French = "TRUE",N="FALSE")
+levels(hdata_short$HLA_Fr)[levels(hdata_short$HLA_Fr)=='N'] <- NA
+
+
+hdata_short$HLA_Oth = factor(hdata_short$HLANO)
+levels(hdata_short$HLA_Oth)[levels(hdata_short$HLA_Oth)=='No non-official language'] <- NA
+levels(hdata_short$HLA_Oth)[levels(hdata_short$HLA_Oth)=='All other single languages'] <- "other"
+
+# change for question part b (regular use)
+hdata_short$HLB_En = factor(hdata_short$HLBEN, labels= c(T,F))
+levels(hdata_short$HLB_En) <- list(English = "TRUE",N="FALSE")
+levels(hdata_short$HLB_En)[levels(hdata_short$HLB_En)=='N'] <- NA
+
+hdata_short$HLB_Fr = factor(hdata_short$HLBFR, labels= c(T,F))
+levels(hdata_short$HLB_Fr) <- list(French = "TRUE",N="FALSE")
+levels(hdata_short$HLB_Fr)[levels(hdata_short$HLB_Fr)=='N'] <- NA
+
+
+hdata_short$HLB_Oth = factor(hdata_short$HLBNO, labels = c(T, F))
+levels(hdata_short$HLB_Oth) <- list(other = "TRUE",N="FALSE")
+levels(hdata_short$HLB_Oth)[levels(hdata_short$HLB_Oth)=='N'] <- NA
+
+
+
+```
+###3.3.1. Create bilingualism variables (N languages, language pairs)
+
+```{r}
+
+# this takes a while to run! there are probably more efficient versions of this.. 
+hdata_short = hdata_short %>%
+  # calculate number of columns that are not NA out of the 6 language variables
+mutate(Nlang_individual = rowSums(!is.na(data.frame(HLA_En, HLA_Fr, HLA_Oth, HLB_En, HLB_Fr, HLB_Oth))),
+       # paste together information about the language pairs observed
+  LangPair_individual = apply(data.frame(HLA_En, HLB_En, HLA_Fr, HLB_Fr, HLA_Oth, HLB_Oth), 1, function(x) paste(x[!is.na(x)], collapse = "_"))) %>%
+  mutate(LangGroup_individual = 
+           case_when(Nlang_individual == 0 ~ NA_character_,
+                     Nlang_individual == 1 ~ "One Language",
+                     Nlang_individual > 1 ~ "Two or more",
+                     TRUE ~ NA_character_))
+
+# minor cleaning steps for simplifying plotting
+# subsume all trilinguals who speak English and French + X as English-French bilinguals
+hdata_short$LangPair_isimplified = ifelse(substr(hdata_short$LangPair_individual,1,14 )=="English_French", "English_French", hdata_short$LangPair_individual)
+
+# simplify bilinguals who speak two "other" languages - for ease of plotting
+hdata_short$LangPair_isimplified  = gsub("other_other", "other", hdata_short$LangPair_isimplified)
+
+
+```
+
+
+
+
+## 3.4. summary tables: children under 9 years
+```{r}
+ 
+hdata_child = hdata_short %>%
+  filter(Child0_9_sum >0)
+
+# number of bilinguals
+#canadian average:
+hdata_child %>%
+filter(AGEGRP=="0 to 9 years") %>%
+  group_by(LangGroup_individual) %>%
+  summarize(N=n()) %>%
+    mutate( Percent = N/sum(N)) 
+
+
+
+
+
+(gma_LangGroup_data = hdata_child %>%
+filter(AGEGRP=="0 to 9 years") %>%
+  group_by(PR,CMA,LangGroup_individual) %>%
+  summarize(N=n()) %>%
+    mutate( Percent = round(N/sum(N),3))%>%
+    filter(LangGroup_individual != "One Language"))
+
+
+# specific language combos
+hdata_child_langPair = hdata_child %>% 
+  filter(AGEGRP=="0 to 9 years",Nlang_individual>1 ) %>%
+  group_by(PR,LangPair_isimplified) %>%
+  summarize(N=n())%>%
+  mutate( Percent = round(N/sum(N),3))%>%
+  arrange(PR, -N)
+
+hdata_child_langPair=hdata_child_langPair %>% group_by(PR) %>%
+  slice(1:5) %>%
+  mutate(id=seq_along(Percent))
+
+# add nicer language labels to graph
+dict = read.csv(file= "LangPair_Dict.csv")
+hdata_child_langPair = full_join(hdata_child_langPair, dict)
+
+
+```
+
+
+# 4. poster plots
+
+## 4.1. plot maps
+### 4.1.1. get canada map data
+```{r}
+
+# get longitude & latitude for CMAs
+canada.cities$CMA = as.character(substr(x = canada.cities$name, 1, nchar(canada.cities$name)-3))
+  canada.cities$CMA[canada.cities$CMA=="Montreal"] ="Montréal"
+gma_LangGroup_data= left_join(gma_LangGroup_data, canada.cities, by="CMA")
+
+# code taken from: https://stackoverflow.com/questions/29421436/adding-provinces-to-canadian-map-in-r
+
+if (!file.exists("./src/ref/ne_50m_admin_1_states_provinces_lakes/ne_50m_admin_1_states_provinces_lakes.dbf")){
+  download.file(file.path('http://www.naturalearthdata.com/http/',
+                          'www.naturalearthdata.com/download/50m/cultural',
+                          'ne_50m_admin_1_states_provinces_lakes.zip'), 
+                f <- tempfile())
+  unzip(f, exdir = "./src/ref/ne_50m_admin_1_states_provinces_lakes")
+  rm(f)
+}
+
+region <- readOGR("./src/ref/ne_50m_admin_1_states_provinces_lakes", 'ne_50m_admin_1_states_provinces_lakes', encoding='UTF-8')
+
+
+regions <- subset(region, name %in% c("British Columbia", "Alberta", "Saskatchewan", "Manitoba", "Ontario", "Quebec","QuÃ©bec", "New Brunswick", "Prince Edward Island", "Nova Scotia", "Newfoundland and Labrador", "Yukon", "Northwest Territories", "Nunavut")) # region is defined in the first part of the code (see above)
+
+
+
+
+```
+### 4.1.2. combine map data and our data
+
+```{r}
+# get dataframe from special maps format, easier for modifying the final plot
+data <- ggplot2::fortify(regions, region = "name_en")
+
+
+gma_LangGroup_data$PR= as.character(gma_LangGroup_data$PR)
+plot.data = left_join(data, gma_LangGroup_data %>% subset(CMA =="Other census metropolitan areas, census agglomerations and o") %>% select(-lat,-long), by=c("id" ="PR"))
+
+
+# delete landmasses on which we don't have data (NW territories, Yukon)
+plot.data <- plot.data[!is.na(plot.data$Percent), ]
+
+
+```
+ 
+
+### 4.1.3. plot map
+```{r}
+ggplot(plot.data, aes(x = long, y = lat, group = group)) +coord_map()+
+    geom_polygon(aes(fill=Percent), colour="white") +
+# scale_fill_viridis(option="cividis",
+   scale_fill_gradient(low="lightgrey", high="darkblue",
+# limits=c(0,.069),
+                     label=percent,
+                     name="Rate of \nChild \nBilingualism"
+                     )+
+     geom_point(shape=21,colour="white",
+                aes(long, lat, fill= Percent, stroke= 2,group = NULL), 
+             size = 6,
+           data=gma_LangGroup_data %>% subset (CMA !="Other census metropolitan areas, census agglomerations and o")) +
+ geom_label( aes(long, lat,label = CMA, group=NULL),
+            nudge_x = 6.5,  size=7,
+           data = gma_LangGroup_data %>% subset (CMA !="Other census metropolitan areas, census agglomerations and o")) + 
+
+  theme_void(base_size=16)+ theme(legend.key.size =  unit(0.18, "in")) # Change key size in the legend 
+
+ggsave("02_output/CanadaHH_Bilinguals.png", width=15, height =5)
+```
+
+## 4.2. bubble charts
+currently, I create the map for each province separately. There is probably a more elegant solution. 
+also, need to make size of circles proportional across provinces (so can compare size of bubbles across provinces)
+### 4.2.0 formatting settings
+```{r}
+circle.plot.height= 4
+
+```
+
+
+### 4.2.1. quebec
+```{r}
+# QUEBEC
+plot.languagePairs = circleProgressiveLayout(hdata_child_langPair[hdata_child_langPair$PR=="Quebec","Percent"])
+
+circles_layout <- circleLayoutVertices(plot.languagePairs)
+circles_layout = left_join(circles_layout, hdata_child_langPair[hdata_child_langPair$PR == "Quebec", c("id","Colour_code")])
+
+ # add labels back in
+plot.languagePairs = cbind(plot.languagePairs, langPair=hdata_child_langPair$LanguagePairing1
+             [hdata_child_langPair$PR=="Quebec"]
+             )
+plot.languagePairs$langPair.fixed =gsub(" ","\n",test$langPair)
+
+plot.quebec = ggplot(circles_layout, aes(x, y)) + 
+  geom_polygon(aes(group = id, fill=factor(Colour_code )), 
+               colour = "black", show.legend = FALSE) +
+  geom_text(data = plot.languagePairs, aes(x, y,fontface=2,lineheight=.8), 
+            label = plot.languagePairs$langPair.fixed) +
+  theme_void(base_size=26)+
+  scale_fill_manual(values = c("#ef8a62", "#af8dc3", "#67a9cf"))+ggtitle("Quebec")+
+  coord_fixed() +
+  theme(plot.title = element_text(hjust = 0.5))
+plot.quebec
+ggsave("02_output/LangPairs_Quebec.png", width=3.5,height=circle.plot.height)
+
+```
+### 4.2.2. bc
+```{r}
+# British Columbia 
+plot.languagePairs = circleProgressiveLayout(hdata_child_langPair[hdata_child_langPair$PR=="British Columbia","Percent"])
+circles_layout <- circleLayoutVertices(plot.languagePairs)
+# add colour code
+circles_layout = left_join(circles_layout, hdata_child_langPair[hdata_child_langPair$PR == "British Columbia", c("id","Colour_code")])
+
+ # add labels back in
+plot.languagePairs = cbind(plot.languagePairs, langPair=hdata_child_langPair$LanguagePairing1
+             [hdata_child_langPair$PR=="British Columbia"]
+             )
+plot.languagePairs$langPair.fixed =gsub(" ","\n",plot.languagePairs$langPair)
+
+
+plot.BC = ggplot(circles_layout, aes(x, y)) + 
+  geom_polygon(aes(group = id,fill=factor(Colour_code)), 
+               colour = "black", show.legend = FALSE) +
+  geom_text(data = plot.languagePairs, aes(x, y, fontface=2,lineheight=.8), 
+            label = plot.languagePairs$langPair.fixed) +
+  theme_void(base_size=26)+
+  scale_fill_manual(values = c("#ef8a62", "#af8dc3", "#67a9cf"))+
+  ggtitle("British Columbia")+
+  coord_fixed()
+  theme(plot.title = element_text(hjust = 0.5))
+plot.BC
+ggsave("02_output/LangPairs_BC.png", width=3.5,height=circle.plot.height)
+
+```
+### 4.2.3. ontario
+
+```{r}
+# ontario
+plot.languagePairs = circleProgressiveLayout(hdata_child_langPair[hdata_child_langPair$PR=="Ontario","Percent"])
+circles_layout <- circleLayoutVertices(plot.languagePairs)
+# add colour code
+circles_layout = left_join(circles_layout, hdata_child_langPair[hdata_child_langPair$PR == "Ontario", c("id","Colour_code")])
+
+ # add labels back in
+plot.languagePairs = cbind(plot.languagePairs, langPair=hdata_child_langPair$LanguagePairing1
+             [hdata_child_langPair$PR=="Ontario"],
+             fill.var = hdata_child_langPair$Colour_code
+             [hdata_child_langPair$PR=="Ontario"])
+plot.languagePairs$langPair.fixed =gsub(" ","\n",test$langPair)
+
+
+plot.ontario = ggplot(circles_layout, aes(x, y)) + 
+  geom_polygon(aes(group = id, 
+                   fill=factor(Colour_code)), 
+               colour = "black", 
+               show.legend = FALSE) +
+  geom_text(data = plot.languagePairs, 
+            aes(x, y, fontface=2,lineheight=.8), 
+            label = plot.languagePairs$langPair.fixed) +
+  theme_void(base_size=26)+
+  scale_fill_manual(values = c("#ef8a62", "#af8dc3", "#67a9cf")) +
+  ggtitle("Ontario")+
+  coord_fixed() +
+  theme(plot.title = element_text(hjust = 0.5))
+plot.ontario
+ggsave("02_output/LangPairs_Ontario.png", width=5,height=circle.plot.height)
+```
+
+### 4.2.3.alberta
+
+```{r}
+
+
+# Alberta
+plot.languagePairs = circleProgressiveLayout(hdata_child_langPair[hdata_child_langPair$PR=="Alberta","Percent"])
+circles_layout <- circleLayoutVertices(plot.languagePairs)
+# add colour code
+circles_layout = left_join(circles_layout, hdata_child_langPair[hdata_child_langPair$PR == "Alberta", c("id","Colour_code")])
+
+ # add labels back in
+plot.languagePairs = cbind(plot.languagePairs, langPair=hdata_child_langPair$LanguagePairing1
+             [hdata_child_langPair$PR=="Alberta"]
+             )
+plot.languagePairs$langPair.fixed =gsub(" ","\n",plot.languagePairs$langPair)
+
+plot.alberta = ggplot(circles_layout, aes(x, y)) + 
+  geom_polygon(aes(group = id, fill=factor(Colour_code)), 
+               colour = "black", show.legend = FALSE) +
+  geom_text(data = plot.languagePairs, aes(x, y, fontface=2, lineheight=.8), label = plot.languagePairs$langPair.fixed) +
+  theme_void(base_size=26)+scale_fill_manual(values = c("#ef8a62", "#af8dc3", "#67a9cf"))+ggtitle("Alberta")+theme(plot.title = element_text(hjust = 0.5)) + 
+  coord_fixed()
+plot.alberta
+ggsave("02_output/LangPairs_Alberta.png", width=4.5,height=circle.plot.height)
+
+
+
+```
+
+## 4.3. combine all plots & save
+```{r}
+(plot.all = plot_grid(plot.BC, plot.alberta, plot.ontario,plot.quebec, ncol=4, align="h",
+                     rel_widths = c(1,1.3,2,1)))
+save_plot("02_output/plotLangCombo.png", plot.all,
+          ncol = 4, # we're saving a grid plot of 2 columns
+          nrow = 1, # and 2 rows
+          base_aspect_ratio = 1
+          )
+```
+
