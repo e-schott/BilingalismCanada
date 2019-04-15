@@ -1,0 +1,137 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+#install.packages("gpclib", type="source")
+
+library(tidyverse)
+library(rgeos)
+library(rgdal)
+library(maptools)
+library(sp)
+library(ggplot2)
+library(here)
+
+# decent, uncluttered map theme (needs devtools package tho)
+devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
+
+# grab the file from "Statistics Canada"
+# 2016 census
+download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lcma000a16a_e.zip", destfile=here("02_map_data/census_map_2016.zip"))
+# 2011 census
+download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/gcd_000b11a_e.zip",
+              destfile=here("02_map_data/gcd_000b11a_e.zip"))
+
+unzip(here("02_map_data/gcd_000b11a_e.zip"))
+unzip(here("02_map_data/census_map_2016.zip"))
+
+
+# this simplifies the polygons so they load/plot faster
+system("ogr2ogr canada.shp gcd_000b11a_e.shp -simplify 0.01")
+system("ogr2ogr canada.shp gcd_000b11a_e.shp -simplify 0.01")
+
+# what layers do we have? you can use this to check
+#   ogrListLayers(here("02_map_data","census_map_2016","lcma000a16a_e.shp"))
+# but there are none, so the shapefile is the layer
+
+canada2016 <- readOGR(here("02_map_data","census_map_2016","lcma000a16a_e.shp"),"lcma000a16a_e")
+
+
+
+# do this to see what's available from an "identifier" standpoint
+# "CDNAME" seems to be the census district name
+# "PRNAME" seems to be the province name
+# str(canada@data)
+
+# rig up  some data
+# make a data frame of census division areas
+# you can assign as many value columns as you like
+# they get merged in later and can be used as the fill level
+# we'll use the area as the fill level
+
+
+map_areas2016 <- data.frame(id=canada2016@data$CMANAME,
+                        area=sapply(slot(canada2016, "polygons"), slot, "area") )
+canada_map2016 <- fortify(canada2016, region="CMANAME")
+canada_map_areas_2016 <- merge(canada_map2016, map_areas2016, by="id")
+
+
+
+
+```
+
+```{r}
+
+ggplot() +  
+
+  geom_map(data=canada_map_areas_2016, map=canada_map_areas_2016,
+                    aes(map_id=id,    group=id#, fill=log1p(area)
+                        ),
+                        color="white", size=0.1)+ 
+         expand_limits(x = canada_map_areas_2016$long, y = canada_map_areas_2016$lat)
+
+canada_map_bilingualism = canada_map2016 %>% left_join(test ) %>% filter(!is.na(Percent))
+
+ggplot() +  
+ geom_map(data=plot.data, map=plot.data,
+                    aes(map_id=id,    group=id, fill=Percent),
+                        color="white", size=0.1)+ 
+  geom_map(data=canada_map_bilingualism, map=canada_map_bilingualism,
+                   aes(map_id=id,    group=id, fill=Percent, alpha = .5),
+                       color="white", size=0.1)+ 
+         expand_limits(x = plot.data$long, y = plot.data$lat)+ coord_fixed( ratio= 1)
+
+
+```
+
+
+old plot data
+```{r}
+canada <- readOGR(here("02_map_data/gcd_000b11a_e.shp"),"gcd_000b11a_e")
+
+
+map_areas <- data.frame(id=canada@data$CDNAME,
+                        area=sapply(slot(canada, "polygons"), slot, "area") )
+# this takes a while, but it makes a data frame for use with
+# ggplot and lets us use the census division name for doing things
+# like applying colors
+canada_map <- fortify(canada, region="CDNAME")
+
+# merge in areas
+canada_map_areas <- merge(canada_map, map_areas, by="id")
+
+ ggplot() + geom_map(data=canada_map_areas, map=canada_map_areas,
+                    aes(map_id=id, x=long, y=lat, 
+                        group=group, fill=log1p(area)),
+                        color="white", size=0.1)+ 
+                    coord_map() + # can choose other projections
+                    theme_map()
+
+```
+
+
+```{r}
+states_map <- map_data("state")
+     ggplot(crimes, aes(map_id = state)) +
+         geom_map(aes(fill = Murder), map = states_map) +
+         expand_limits(x = states_map$long, y = states_map$lat)
+     
+     last_plot() + coord_map()
+     ggplot(crimesm, aes(map_id = state)) +
+         geom_map(aes(fill = value), map = states_map) +
+         expand_limits(x = states_map$long, y = states_map$lat) +
+         facet_wrap( ~ variable)
+```
+

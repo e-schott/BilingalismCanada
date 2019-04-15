@@ -4,3 +4,9 @@
 BilingalismCanada\.Rproj
 
 \.Rhistory
+
+*.sav
+
+\.RData
+
+02_map_data/
