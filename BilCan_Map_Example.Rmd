@@ -13,7 +13,8 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
+# load libraries
+```{r}
 #install.packages("gpclib", type="source")
 
 library(tidyverse)
@@ -23,6 +24,11 @@ library(maptools)
 library(sp)
 library(ggplot2)
 library(here)
+```
+
+
+```{r cars}
+
 
 # decent, uncluttered map theme (needs devtools package tho)
 devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
@@ -93,6 +99,37 @@ ggplot() +
                        color="white", size=0.1)+ 
          expand_limits(x = plot.data$long, y = plot.data$lat)+ coord_fixed( ratio= 1)
 
+
+```
+# plot provinces
+```{r}
+
+download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000b16a_e.zip", destfile=here("02_map_data/lpr_000a16a_e.zip"))
+#download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000a16a_e.zip",
+ #             destfile=here("02_map_data/lpr_000a16a_e.zip"))
+
+unzip(here("02_map_data/lpr_000a16a_e.zip"), exdir = here("02_map_data","province_map_2016"))
+
+
+# this simplifies the polygons so they load/plot faster
+system("ogr2ogr  lpr_000b16a_e.shp -simplify 0.01")
+
+# what layers do we have? you can use this to check
+#   ogrListLayers(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))
+# but there are none, so the shapefile is the layer
+
+province2016 <- readOGR(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"),"lpr_000b16a_e")
+province_map <- fortify(province2016, region="PRENAME")
+
+
+ ggplot() + geom_map(data=province_map, map=province_map,
+                    aes(map_id=id, 
+                        group=group),
+                        color="white", size=0.1)+ geom_map(data=canada_map_areas_2016, map=canada_map_areas_2016,
+                    aes(map_id=id,    group=id, fill="grey"
+                        ),
+                        color="white", size=0.1)+ 
+   expand_limits(x = province_map$long, y = province_map$lat) 
 
 ```
 

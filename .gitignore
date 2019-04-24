@@ -10,3 +10,23 @@ BilingalismCanada\.Rproj
 \.RData
 
 02_map_data/
+
+*.shp
+
+province_data_2016/
+
+src/ref/ne_50m_admin_1_states_provinces_lakes/
+
+Rplot001\.png
+
+*.pdf
+
+gcd_000b11a_e\.dbf
+
+*.prj
+
+*.shx
+
+*.dbf
+
+*.html
