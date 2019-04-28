@@ -33,30 +33,16 @@ library(here)
 # decent, uncluttered map theme (needs devtools package tho)
 devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
 
+if(!file.exists(here("02_map_data","census_map_2016","lcma000a16a_e.shp"))) {
 # grab the file from "Statistics Canada"
-# 2016 census
+# 2016 census, CMA areas only
 download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lcma000a16a_e.zip", destfile=here("02_map_data/census_map_2016.zip"))
 unzip(here("02_map_data/census_map_2016.zip"))
-system("ogr2ogr canada.shp gcd_000b11a_e.shp -simplify 0.01")
+system("ogr2ogr canada.shp lcma000a16a_e.shp -simplify 0.01")
+}
 canada2016 <- readOGR(here("02_map_data","census_map_2016","lcma000a16a_e.shp"),"lcma000a16a_e")
 
 
-
-# 2011 census
-download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/gcd_000b11a_e.zip",
-              destfile=here("02_map_data/gcd_000b11a_e.zip"))
-
-unzip(here("02_map_data/gcd_000b11a_e.zip"))
-
-
-# this simplifies the polygons so they load/plot faster
-system("ogr2ogr canada.shp gcd_000b11a_e.shp -simplify 0.01")
-
-# what layers do we have? you can use this to check
-#   ogrListLayers(here("02_map_data","census_map_2016","lcma000a16a_e.shp"))
-# but there are none, so the shapefile is the layer
-
-canada2016 <- readOGR(here("02_map_data","census_map_2016","lcma000a16a_e.shp"),"lcma000a16a_e")
 
 
 
@@ -77,33 +63,9 @@ canada_map_areas_2016 <- merge(canada_map2016, map_areas2016, by="id")
 
 
 ```
-
+# read census province map
 ```{r}
-
-ggplot() +  
-
-  geom_map(data=canada_map_areas_2016, map=canada_map_areas_2016,
-                    aes(map_id=id,    group=id#, fill=log1p(area)
-                        ),
-                        color="white", size=0.1)+ 
-         expand_limits(x = canada_map_areas_2016$long, y = canada_map_areas_2016$lat)
-
-canada_map_bilingualism = canada_map2016 %>% left_join(test ) %>% filter(!is.na(Percent))
-
-ggplot() +  
- geom_map(data=plot.data, map=plot.data,
-                    aes(map_id=id,    group=id, fill=Percent),
-                        color="white", size=0.1)+ 
-  geom_map(data=canada_map_bilingualism, map=canada_map_bilingualism,
-                   aes(map_id=id,    group=id, fill=Percent, alpha = .5),
-                       color="white", size=0.1)+ 
-         expand_limits(x = plot.data$long, y = plot.data$lat)+ coord_fixed( ratio= 1)
-
-
-```
-# plot provinces
-```{r}
-
+if(!file.exists(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))) {
 download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000b16a_e.zip", destfile=here("02_map_data/lpr_000a16a_e.zip"))
 #download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000a16a_e.zip",
  #             destfile=here("02_map_data/lpr_000a16a_e.zip"))
@@ -113,6 +75,7 @@ unzip(here("02_map_data/lpr_000a16a_e.zip"), exdir = here("02_map_data","provinc
 
 # this simplifies the polygons so they load/plot faster
 system("ogr2ogr  lpr_000b16a_e.shp -simplify 0.01")
+}
 
 # what layers do we have? you can use this to check
 #   ogrListLayers(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))
@@ -122,6 +85,11 @@ province2016 <- readOGR(here("02_map_data","province_map_2016","lpr_000b16a_e.sh
 province_map <- fortify(province2016, region="PRENAME")
 
 
+
+
+```
+# plot CMA and provinces together
+```{r}
  ggplot() + geom_map(data=province_map, map=province_map,
                     aes(map_id=id, 
                         group=group),
@@ -130,45 +98,7 @@ province_map <- fortify(province2016, region="PRENAME")
                         ),
                         color="white", size=0.1)+ 
    expand_limits(x = province_map$long, y = province_map$lat) 
-
 ```
 
 
-old plot data
-```{r}
-canada <- readOGR(here("02_map_data/gcd_000b11a_e.shp"),"gcd_000b11a_e")
-
-
-map_areas <- data.frame(id=canada@data$CDNAME,
-                        area=sapply(slot(canada, "polygons"), slot, "area") )
-# this takes a while, but it makes a data frame for use with
-# ggplot and lets us use the census division name for doing things
-# like applying colors
-canada_map <- fortify(canada, region="CDNAME")
-
-# merge in areas
-canada_map_areas <- merge(canada_map, map_areas, by="id")
-
- ggplot() + geom_map(data=canada_map_areas, map=canada_map_areas,
-                    aes(map_id=id, x=long, y=lat, 
-                        group=group, fill=log1p(area)),
-                        color="white", size=0.1)+ 
-                    coord_map() + # can choose other projections
-                    theme_map()
-
-```
-
-
-```{r}
-states_map <- map_data("state")
-     ggplot(crimes, aes(map_id = state)) +
-         geom_map(aes(fill = Murder), map = states_map) +
-         expand_limits(x = states_map$long, y = states_map$lat)
-     
-     last_plot() + coord_map()
-     ggplot(crimesm, aes(map_id = state)) +
-         geom_map(aes(fill = value), map = states_map) +
-         expand_limits(x = states_map$long, y = states_map$lat) +
-         facet_wrap( ~ variable)
-```
 
