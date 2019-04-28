@@ -36,16 +36,20 @@ devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
 # grab the file from "Statistics Canada"
 # 2016 census
 download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lcma000a16a_e.zip", destfile=here("02_map_data/census_map_2016.zip"))
+unzip(here("02_map_data/census_map_2016.zip"))
+system("ogr2ogr canada.shp gcd_000b11a_e.shp -simplify 0.01")
+canada2016 <- readOGR(here("02_map_data","census_map_2016","lcma000a16a_e.shp"),"lcma000a16a_e")
+
+
+
 # 2011 census
 download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/gcd_000b11a_e.zip",
               destfile=here("02_map_data/gcd_000b11a_e.zip"))
 
 unzip(here("02_map_data/gcd_000b11a_e.zip"))
-unzip(here("02_map_data/census_map_2016.zip"))
 
 
 # this simplifies the polygons so they load/plot faster
-system("ogr2ogr canada.shp gcd_000b11a_e.shp -simplify 0.01")
 system("ogr2ogr canada.shp gcd_000b11a_e.shp -simplify 0.01")
 
 # what layers do we have? you can use this to check
@@ -61,11 +65,7 @@ canada2016 <- readOGR(here("02_map_data","census_map_2016","lcma000a16a_e.shp"),
 # "PRNAME" seems to be the province name
 # str(canada@data)
 
-# rig up  some data
-# make a data frame of census division areas
-# you can assign as many value columns as you like
-# they get merged in later and can be used as the fill level
-# we'll use the area as the fill level
+
 
 
 map_areas2016 <- data.frame(id=canada2016@data$CMANAME,
