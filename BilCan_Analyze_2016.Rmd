@@ -201,7 +201,7 @@ idata_wide = idata_long %>% select(-lang_question, -answer, -language_reported) 
 
 ### 2.0.4. geographical location
 ```{r}
-idata_long$gma.interest = ifelse(idata_long$CMA %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary"),as.character(idata_long$CMA), NA)
+idata_long$gma.interest = ifelse(idata_long$CMA %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata_long$CMA), NA)
 ```
  # individuals dataset: Children under 5
 ```{r}
@@ -243,36 +243,12 @@ dict = read.csv(file = "LangPair_Dict_2016.csv")
 idata_child_lang_combo = left_join(idata_child_lang_combo, dict)
 
 ```
+# save idata_child for creating map
 
-# prep canada map
+
 ```{r}
-(gma_LangGroup_data = idata_child %>%
-  group_by(PR,CMA,N_Two_or_more) %>%
-  summarize(N=n()) %>%
-    mutate( Percent = round(N/sum(N),3))%>%
-    filter(N_Two_or_more != "1") 
-    )
+saveRDS(idata_child, file = here::here("01_datasets","02_processed_data", "Individuals_child_data.rdata"))
 
-
-gma_LangGroup_data_other = gma_LangGroup_data %>%    filter(substr(CMA,1,5) == "Other")
-
-gma_LangGroup_data_other$PR= as.character(gma_LangGroup_data_other$PR)
-plot.data = left_join(data, gma_LangGroup_data_other %>% subset(CMA =="Other census metropolitan areas, census agglomerations and o") , by=c("id" ="PR"))
-
-
-# delete landmasses on which we don't have data (NW territories, Yukon)
-plot.data <- plot.data[!is.na(plot.data$Percent), ]
-gma_LangGroup_data = gma_LangGroup_data %>% 
-   filter(substr(CMA,1,5) != "Other")
-
-
-hello = stringdist_left_join(gma_LangGroup_data, map_areas2016 %>% rename(CMA = id), by ="CMA", distance_col = NULL)
-hello %>% select(PR,CMA.x, CMA.y) %>% filter(is.na(CMA.y)) %>% write.csv(., file=here("02_map_data/Dict-CMA.csv"), row.names=F) 
-dict.map  = read.csv(here("02_map_data/Dict-CMA-coded.csv"))
-gma_LangGroup_data = gma_LangGroup_data %>% left_join(dict.map) %>% rename(CMA.old = CMA) %>%  mutate(CMA = ifelse(is.na(CMA.splitUp), CMA.old, as.character(CMA.splitUp))) %>% select(-CMA.old, -CMA.splitUp)
-
-  test = gma_LangGroup_data %>% stringdist_left_join(map_areas2016 %>% rename(CMA = id), by = "CMA", distance_col = NULL) %>% select(-CMA.old, -CMA.x, -area) %>%
-    rename(id = CMA.y)
   
 #gma_LangGroup_data = gma_LangGroup_data %>% 
 #  mutate(Area = agrep()
@@ -561,7 +537,11 @@ data <- ggplot2::fortify(regions, region = "name_en")
 
 
 gma_LangGroup_data$PR= as.character(gma_LangGroup_data$PR)
-plot.data = left_join(data, gma_LangGroup_data %>% subset(CMA =="Other census metropolitan areas, census agglomerations and o") %>% select(-lat,-long), by=c("id" ="PR"))
+plot.data = left_join(data, 
+                      gma_LangGroup_data %>% 
+                        subset(CMA =="Other census metropolitan areas, census agglomerations and o") %>% 
+                        select(-lat,-long), 
+                      by=c("id" ="PR"))
 
 
 # delete landmasses on which we don't have data (NW territories, Yukon)
