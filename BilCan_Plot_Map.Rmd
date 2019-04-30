@@ -68,8 +68,9 @@ canada2016 <- readOGR(here("02_map_data","census_map_2016","lcma000a16a_e.shp"),
 
 map_areas2016 <- data.frame(id=canada2016@data$CMANAME,
                         area=sapply(slot(canada2016, "polygons"), slot, "area") )
-canada_map2016 <- fortify(canada2016, region="CMANAME")
-canada_map_areas_2016 <- merge(canada_map2016, map_areas2016, by="id")
+cma_map2016 <- fortify(canada2016, region="CMANAME")
+rm(canada2016)
+canada_map_areas_2016 <- merge(cma_map2016, map_areas2016, by="id")
 
 
 
@@ -95,7 +96,7 @@ system("ogr2ogr  lpr_000b16a_e.shp -simplify 0.01")
 
 province2016 <- readOGR(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"),"lpr_000b16a_e")
 province_map <- fortify(province2016, region="PRENAME")
-
+rm(province2016)
 
 
 
@@ -180,20 +181,14 @@ gma_map_data = left_join(gma_lang_for_merging, canada_map_areas_2016)
 
 ## province data
 ```{r}
-province_map_data = full_join( 
-                      province_data %>% 
-                        subset(CMA =="Other census metropolitan areas, census agglomerations and o") , province_map, 
-                      by=c("PR" ="id"))
 
-
-# delete landmasses on which we don't have data (NW territories, Yukon)
-province_map_data <- province_map_data %>% filter(!is.na(Percent))
 ```
 
 ## get labels
 
 ```{r}
-gma_labels = gma_map_data %>% filter(N>70) %>% group_by(CMA.old) %>% summarize(# y
+gma_labels = gma_map_data %>% filter(N>70) %>% group_by(CMA.old) %>% summarize(
+  # y
   long = max(long), 
   # x 
   lat = mean(lat))
