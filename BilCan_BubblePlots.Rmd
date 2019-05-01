@@ -1,0 +1,113 @@
+---
+title: "Census Bilingualism - Bubble Plots"
+author: "Esther Schott"
+date: "April 30, 2019"
+output: html_document
+---
+output: 
+  html_document: 
+    code_folding: show
+    collapsed: no
+    df_print: kable
+    highlight: espresso
+    number_sections: yes
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+# load libraries
+```{r}
+#install.packages("gpclib", type="source")
+
+library(tidyverse)
+library(here)
+library(packcircles)
+
+library(viridis)
+library(scales)
+library(ggrepel)
+```
+
+# load data
+
+```{r}
+idata_child = readRDS(file = here::here("01_datasets","02_processed_data", "Individuals_child_data.rdata"))
+```
+
+# process data
+
+```{r}
+
+# specific language combos
+idata_child_lang_combo = idata_child %>% 
+  filter(N_Two_or_more > 1 ) %>%
+  group_by(PR,Lang_Combo_top2) %>%
+  summarize(N=n())%>%
+  mutate( Percent = round(N/sum(N),3))%>%
+  arrange(PR, -N)
+
+idata_child_lang_combo = idata_child_lang_combo %>%
+  filter(PR %in% c("British Columbia","Alberta","Quebec", "Ontario", "Northern Canada"), N >5) %>%
+  group_by(PR) %>%
+  slice(1:5) %>%
+  mutate(id=seq_along(Percent))
+
+# add nicer language labels to graph
+dict = read.csv(file = "LangPair_Dict_2016.csv")
+idata_child_lang_combo = left_join(idata_child_lang_combo, dict) %>%
+  mutate(lang_combo_lb = gsub(" ","\n",lang_combo_label))
+
+
+
+```
+
+
+
+
+
+
+
+# creating bubble figures
+```{r}
+
+
+
+
+circle_plots = idata_child_lang_combo %>% 
+  group_by(PR) %>%  
+  nest() %>%  
+  mutate(circle_size_pos = map(data,  ~circleProgressiveLayout(.$Percent)),
+         circle_layout = map(circle_size_pos, circleLayoutVertices),
+         circle_layout = map2(data , 
+                              circle_layout, 
+                              left_join),
+         circle_draw_labels = map2(circle_size_pos, data,cbind)) 
+
+circle.plot.height =5
+  
+```
+# all plots
+```{r}
+
+for(plot_num in 1:length(circle_plots$PR)) {
+plot = ggplot(circle_plots$circle_layout[[plot_num]], aes(x, y)) + 
+  geom_polygon(aes(group = id, fill=factor(Colour_code )), 
+               colour = "black", show.legend = FALSE) +
+  geom_text(data = circle_plots$circle_draw_labels[[plot_num]], aes(x, y,fontface=2,lineheight=.8, 
+            label =lang_combo_lb)) +
+  theme_void(base_size=26)+
+  scale_fill_manual(values = c("#ef8a62", "#af8dc3", "#67a9cf", "green"))+
+  ggtitle(circle_plots$PR[[plot_num]])+
+  coord_fixed() +
+  theme(plot.title = element_text(hjust = 0.5))+ 
+ggsave(here("03_output","01_figures",paste("plot_",circle_plots$PR[[plot_num]],".png",sep="")), width=3.5,height=circle.plot.height)
+}
+```
