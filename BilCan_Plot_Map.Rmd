@@ -189,7 +189,7 @@ gma_map_data = left_join(gma_lang_for_merging, canada_map_areas_2016)
 ```{r}
 gma_labels = gma_map_data %>% filter(N>70) %>% group_by(CMA.old) %>% summarize(
   # y
-  long = max(long), 
+  long = mean(long), 
   # x 
   lat = mean(lat))
 
@@ -207,7 +207,7 @@ gma_labels_adj = gma_labels %>%
 # plot CMA and provinces together
 ```{r}
 province_map_data = province_map_data %>% na.omit()
- ggplot() + 
+map_plot =  ggplot() + 
   # draw province map
   geom_map(data=province_data , 
            map=province_map,
@@ -226,13 +226,39 @@ geom_map(data=gma_map_data,
    scale_fill_viridis(option = "C", labels = percent, name="Rate of \nChild \nBilingualism")+
   # define limits for the plot (since province_map and canada_map_areas uses same scale, can use either one...)
    expand_limits(x = province_map$long, 
-                 y = province_map$lat) + theme_map()+ coord_fixed(ratio=1)+
-   geom_label_repel( aes(long, lat,label = city, group=NULL),
-              size=5,
-           data = gma_labels_adj) + 
+                 y = province_map$lat) + theme_map()+ coord_fixed(ratio=1)+ 
    theme(legend.position = c(0.8, 0.5))
+ 
+ map_plot_with_label = map_plot +   geom_label_repel( aes(long, lat,label = city, group=NULL),
+              size=5,
+           data = gma_labels_adj) 
  ggsave(here::here("03_output","01_figures","canada_map.png"), width = 13, height =7)
 ```
 
+# try a petter way to plot labels
+```{r}
+
+map_plot + 
+  # Montreal, Ottawa,Toronto
+geom_text_repel(data          = subset(gma_labels_adj, long > 5000000),
+                    aes(x= long, y= lat, label = city, group=NULL),
+   nudge_x       = 9195936-  subset(gma_labels_adj, long > 5000000)$long,
+    segment.size  = 1,
+    segment.color = "grey50",
+    direction     = "both",
+    vjust         = 1
+  ) +
+  geom_text_repel(data          = subset(gma_labels_adj, long < 5000000),
+                    aes(x= long, y= lat, label = city, group=NULL),
+    nudge_y       = 950425 - subset(gma_labels_adj, long < 5000000)$lat,
+    segment.size  = 1,
+    segment.color = "grey50",
+    direction     = "both",
+    vjust         = 1
+  ) 
+
+ ggsave(here::here("03_output","01_figures","canada_map_diff_labels.png"), width = 13, height =7)
+
+```
 
 
