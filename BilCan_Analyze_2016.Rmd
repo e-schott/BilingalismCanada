@@ -138,7 +138,7 @@ old_language_cols = c("HLAEN","HLAFR", "HLANO","HLBEN",  "HLBFR", "HLBNO" )
 idata_long = idata_short %>% 
   select(-old_language_cols) %>%
   # cut down size of df for debugging
-  sample_n(193000) %>%
+  #sample_n(193000) %>%
 
   gather(lang_question, answer,HLA_En:HLB_Oth) %>%
   arrange(caseID)
@@ -178,9 +178,9 @@ idata_wide = idata_long %>% select(-lang_question, -answer, -language_reported) 
 
 ### 2.0.4. geographical location
 ```{r}
-idata_long$gma.interest = ifelse(idata_long$CMA %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata_long$CMA), NA)
+# idata_long$gma.interest = ifelse(idata_long$CMA %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata_long$CMA), NA)
 ```
- # individuals dataset: Children under 5
+ # individuals dataset: Children aged 0 to 4
 ```{r}
 idata_child = idata_wide %>%
   filter(AGEGRP == "0 to 4 years")
@@ -188,15 +188,16 @@ idata_child = idata_wide %>%
 
 idata_child %>% 
   group_by(N_Two_or_more) %>%
-  summarize(N=n()) %>%
-  spread(N_Two_or_more, N) %>%
-  clean_names() %>%
-  mutate(total = x1+x2, 
-         percent = x2/total)
+  summarize(N=n()) %>% 
+  mutate(N_Two_or_more = paste0("lang", N_Two_or_more)) %>%
+  spread(N_Two_or_more, N) %>% 
+  mutate(total = lang1+`lang2+`+langNA, 
+         percent_2plus_lang = `lang2+`/total)
 
 
 
 ```
+
  
 
 # save idata_child for creating map
