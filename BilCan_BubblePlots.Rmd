@@ -47,23 +47,32 @@ idata_child = readRDS(file = here::here("01_datasets","02_processed_data", "Indi
 ```{r}
 
 # specific language combos
-idata_child_lang_combo = idata_child %>% 
+idata_child_lang_combo_long = idata_child %>% 
+  group_by(PR) %>%
+  mutate(N_respondents_by_province = n())%>% ungroup() %>%
   filter(N_Two_or_more > 1 ) %>%
-  group_by(PR,Lang_Combo_top2) %>%
+  group_by(PR,N_respondents_by_province,Lang_Combo_top2) %>%
   summarize(N=n())%>%
-  mutate( Percent = round(N/sum(N),3))%>%
+  mutate( Percent = round(N/sum(N),3),
+          Percent_of_total_PR = round(N/N_respondents_by_province,3)*100) %>%
   arrange(PR, -N)
 
-idata_child_lang_combo = idata_child_lang_combo %>%
-  filter(PR %in% c("British Columbia","Alberta","Quebec", "Ontario", "Northern Canada"), N >5) %>%
+idata_child_lang_combo_long %>% group_by(PR) %>% summarize(mean(N_respondents_by_province))
+
+idata_child_lang_combo = idata_child_lang_combo_long %>%
+  filter(PR %in% c("British Columbia","Alberta","Quebec", "Ontario"), N >5) %>%
   group_by(PR) %>%
   slice(1:5) %>%
   mutate(id=seq_along(Percent))
 
 # add nicer language labels to graph
 dict = read.csv(file = "LangPair_Dict_2016.csv")
-idata_child_lang_combo = left_join(idata_child_lang_combo, dict) %>%
-  mutate(lang_combo_lb = gsub(" ","\n",lang_combo_label))
+
+idata_child_lang_combo = idata_child_lang_combo %>%
+   left_join( dict) %>%
+  mutate(lang_combo_label_percent = paste(lang_combo_label," ", Percent_of_total_PR, "%", sep="")) %>%
+ 
+  mutate(lang_combo_lb = gsub(" ","\n",lang_combo_label_percent))
 
 
 
@@ -105,9 +114,9 @@ plot = ggplot(circle_plots$circle_layout[[plot_num]], aes(x, y)) +
             label =lang_combo_lb)) +
   theme_void(base_size=26)+
   scale_fill_manual(values = c("#ef8a62", "#af8dc3", "#67a9cf", "green"))+
-  ggtitle(circle_plots$PR[[plot_num]])+
+ # ggtitle(circle_plots$PR[[plot_num]])+
   coord_fixed() +
-  theme(plot.title = element_text(hjust = 0.5))+ 
-ggsave(here("03_output","01_figures",paste("plot_",circle_plots$PR[[plot_num]],".png",sep="")), width=3.5,height=circle.plot.height)
+  #theme(plot.title = element_text(hjust = 0.5))+ 
+ggsave(here("03_output","01_figures",paste("plot_",circle_plots$PR[[plot_num]],".png",sep="")), width=4.5,height=4.5)
 }
 ```
