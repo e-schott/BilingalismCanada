@@ -20,6 +20,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+\\\
 # load libraries
 ```{r}
 #install.packages("gpclib", type="source")
@@ -120,6 +121,34 @@ gma_LangGroup_data = idata_child %>%
     
 
 ```
+# table for poster
+```{r}
+table_prov = idata_child %>%
+  group_by(PR) %>%
+  mutate(total = n()) %>% 
+  group_by(PR,total,N_Two_or_more) %>%
+  summarize(N=n()) %>% 
+    mutate( Percent = percent(N/total,1))%>% 
+    filter(N_Two_or_more != "1")  %>%
+  select(-N_Two_or_more)
+
+table_city = idata_child %>%
+  group_by(PR,CMA,N_Two_or_more) %>%
+  summarize(N_city=n()) %>%
+  
+    mutate( Percent_city = percent(N_city/sum(N_city),1)) %>%
+  ungroup() %>%
+mutate(      CMA = ifelse(CMA =="Other census metropolitan areas, census agglomerations and o","_other",as.character(CMA)))%>% 
+    filter(N_Two_or_more != "1")  %>%
+  select(-N_Two_or_more) %>%
+  arrange(CMA,-N_city) %>% filter(N_city >250 ) 
+table_poster = full_join( table_prov, table_city %>% rename(N= N_city, Percent = Percent_city) ) %>% select(PR, CMA,total, N, Percent) %>%
+  arrange(PR)
+write.csv(table_poster, file=here("03_output","Table.csv"),row.names = F)
+
+```
+
+
 
 ## process "other" non-cma area data
 ```{r}
@@ -199,23 +228,36 @@ gma_labels = gma_map_data %>% group_by(CMA.old) %>% summarize(
   mutate(short_label = gsub(" – .*","",CMA.old),
          short_label = gsub(" / .*","", short_label))
 
-
+add_labels = tibble(CMA.old = "Grand Sudbury", lat = 1250604.3, long = 7085883 )
+GTA_cities = c("Brantford – Guelph – Barrie","Kitchener – Cambridge – Waterloo",  "Hamilton",  "Kingston – Peterborough", 
+ "St. Catharines – Niagara", "Toronto")
 gma_labels = gma_map_data %>% group_by(CMA.old) %>% summarize(
   # y
   long = mean(long), 
   # x 
   lat = mean(lat)) %>%
+  full_join(add_labels) %>%
   mutate(short_label = gsub(" – .*","",CMA.old),
          short_label = gsub(" / .*","", short_label))
 
 
 gma_labels_adj = gma_labels %>%
   mutate(city = ifelse(CMA.old == "Ottawa – Gatineau", "Ottawa", CMA.old ),
+         lat = case_when(city == "Ottawa"~ lat+ 100000, 
+                         city == "Oshawa" ~lat+ 50000,
+                         TRUE ~ lat),
+         
     long_adj = case_when(
     city %in% c("Toronto", "Edmonton","Calgary", "Ottawa")~ long + 100000,
     TRUE ~ long),
-    lat_adj  = ifelse(city == "Vancouver", lat - 150000, lat)
-  )
+    lat_adj  = ifelse(city == "Vancouver", lat - 150000, lat),
+    GTA = case_when(
+      CMA.old %in% GTA_cities[1:2] ~ "GTA-south",
+      CMA.old %in% GTA_cities ~ "GTA-west",
+      TRUE ~NA_character_),
+    label_linebreak = gsub(" – ","\n",CMA.old)
+    )
+  
 
 # choose which labels to plot
 good_labels = 
@@ -248,16 +290,17 @@ geom_map(data=gma_map_data,
          fill=Percent),
          color="white", 
         size=0.05)+ 
-   scale_fill_viridis(option = "C", labels = percent, name="Rate of \nChild \nBilingualism")+
+   scale_fill_viridis(option = "D", labels = scales::percent_format(accuracy=1), 
+                      name="rate of \nchild \nbilingualism", breaks = seq(0.0,0.25, by = .05))+
   # define limits for the plot (since province_map and canada_map_areas uses same scale, can use either one...)
    expand_limits(x = province_map$long, 
                  y = province_map$lat) + theme_map(base_size = 15)+ coord_fixed(ratio=1)+ 
-   theme(legend.position = c(0.8, 0.5))
+   theme(legend.position = c(0.71, 0.55))
  
  map_plot_with_label = map_plot +   geom_label_repel( aes(long, lat,label = city, group=NULL),
-              size=5,
+              size=4,
            data = gma_labels_adj) 
- ggsave(here::here("03_output","01_figures","canada_map.png"), width = 13, height =7)
+ ggsave(here::here("03_output","01_figures","canada_map.png"), width = 10, height =7)
 ```
 
 # try a petter way to plot labels
@@ -284,7 +327,67 @@ geom_text_repel(data          = subset(gma_labels_adj, long > 5000000),
 
  ggsave(here::here("03_output","01_figures","canada_map_diff_labels.png"), width = 13, height =7)
 
+
+
 ```
+##zoom in on ontario + Quebec
+```{r fig.height = 7, fig.width = 10}
+
+zoom_plot_x_min = 6971050-10000
+zoom_plot_x_max = 7757551+500000
+zoom_plot_y_min = 720614.5-10000
+zoom_plot_y_max = 1439061.2+200000
+
+
+gma_labels_adj = gma_labels_adj %>%
+  mutate(zoom_area = if_else(between(long,
+                                                zoom_plot_x_min,
+                                                zoom_plot_x_max)&
+                                            between(lat, zoom_plot_y_min,
+                                                    zoom_plot_y_max),
+                             "zoom", NA_character_))
+
+
+ratio = (zoom_plot_x_max- zoom_plot_x_min ) /(zoom_plot_y_max-zoom_plot_y_min)
+height =7
+
+
+map_plot + coord_cartesian(xlim=c(zoom_plot_x_min,zoom_plot_x_max),
+                           ylim = c(zoom_plot_y_min,zoom_plot_y_max))+
+  
+  geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
+              
+           data = gma_labels_adj %>% filter(zoom_area == "zoom" & 
+                                              is.na(GTA)), 
+           alpha=.75,
+           size=5, 
+           segment.colour = "grey50", segment.size = 1.5)+
+  
+  geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
+              
+           data = gma_labels_adj %>% filter(zoom_area == "zoom" & 
+                                              GTA =="GTA-south"), 
+           alpha=.75,ylim= c(817632.7,NA), xlim=c(NA,7026050),
+           size=4, 
+           segment.colour = "grey50", segment.size = 1.5 #, nudge_x = 50000,nudge_y =-20000
+           )   +
+  geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
+              
+           data = gma_labels_adj %>% filter(zoom_area == "zoom" & 
+                                              GTA =="GTA-west"), 
+           alpha=.75,xlim= c(7300000-20000,NA),
+           size=5, 
+           segment.colour = "grey50", segment.size = 1.5 #, nudge_x = 50000,nudge_y =-20000
+           )   +
+  guides(fill = "none")
+
+
+
+ ggsave(here::here("03_output","01_figures","canada_map_zoomed.png"), width = ratio*height, height =height)
+
+```
+
+
 # child bilingualism map
 ```{r}
 cutoff= 7241271
@@ -314,37 +417,21 @@ geom_label_repel(data          = subset(essential_gma_labels,  long > cutoff),
 ```
 
 
-# other map
+# best canada map
 ```{r}
-good_labels = c( "Calgary", "Edmonton",  "Halifax", 
-"Hamilton", "Kelowna", "Kingston", "London", "Moncton", 
-"Montréal", "Ottawa", "Québec", "Regina", 
- "Toronto", "Vancouver", "Victoria", "Windsor", 
+good_labels = c( "Calgary", "Edmonton",  "Halifax", "Kelowna",   
+ "Regina", 
+  "Vancouver", "Victoria", 
 "Winnipeg")
 
 map_plot + 
   # Montreal, Ottawa,Toronto
 geom_label_repel(data          = subset(gma_labels, short_label %in% good_labels ),
-                    aes(x= long, y= lat, label = short_label), size =5 ,
+                    aes(x= long, y= lat, label = short_label), size =2 ,
                  alpha = 0.75 , seed=1234)
   
- ggsave(here::here("03_output","01_figures","canada_map_transparent_labels.png"), width = 13, height =7)
+ ggsave(here::here("03_output","01_figures","canada_map_transparent_labels.png"), width = 9, height =7)
 
-#,
-#   nudge_x       = 9195936-  subset(gma_labels, long > cutoff)$long,
- #   segment.size  = 1,
-  #  segment.color = "grey50",
-   # direction     = "both",
-    #vjust         = 1
-  # ) +
-  # geom_text_repel(data          = subset(gma_labels, long < cutoff),
-  #                   aes(x= long, y= lat, label = short_label, group=NULL),
-  #   nudge_y       = 950425 - subset(gma_labels, long < cutoff)$lat,
-  #   segment.size  = 1,
-  #   segment.color = "grey50",
-  #   direction     = "both",
-  #   vjust         = 1
-  # ) 
 ```
 
 
