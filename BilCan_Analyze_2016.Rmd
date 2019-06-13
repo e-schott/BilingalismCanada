@@ -78,8 +78,8 @@ variables.keep = c("PPSORT", # individual case ID
   "PR","CMA", # location: province & metropolitain area
                    "AGEGRP","PKID0_1", "PKID2_5", # number of children between 0 and 1, and 2 and 5
                    "HLAEN","HLAFR","HLANO", # home language part A
-                   "HLBEN","HLBFR","HLBNO") #home language part B
-
+                   "HLBEN","HLBFR","HLBNO", #home language part B
+                    "CFInc", "DPGRSUM")
 idata_short = idata %>% select(variables.keep)
 idata_short$Child0_1 = factor(idata_short$PKID0_1, labels=c("NotAvailable","1+","0"))
 idata_short$Child2_5 = factor(idata_short$PKID2_5, labels=c("NotAvailable","1+","0"))

@@ -290,12 +290,16 @@ geom_map(data=gma_map_data,
          fill=Percent),
          color="white", 
         size=0.05)+ 
+  # English label
    scale_fill_viridis(option = "D", labels = scales::percent_format(accuracy=1), 
-                      name="rate of \nchild \nbilingualism", breaks = seq(0.0,0.25, by = .05))+
+                      name="Rate of \nchild \nbilingualism", breaks = seq(0.0,0.25, by = .05))+
+  #French label (comment out if not wanted)
+ # scale_fill_viridis(option = "D", labels = scales::percent_format(accuracy=1), 
+  #                    name="Pourcentage des \nenfants \nbilingues", breaks = seq(0.0,0.25, by = .05))+
   # define limits for the plot (since province_map and canada_map_areas uses same scale, can use either one...)
    expand_limits(x = province_map$long, 
                  y = province_map$lat) + theme_map(base_size = 15)+ coord_fixed(ratio=1)+ 
-   theme(legend.position = c(0.71, 0.55))
+   theme(legend.position = c(0.71, 0.53))
  
  map_plot_with_label = map_plot +   geom_label_repel( aes(long, lat,label = city, group=NULL),
               size=4,
@@ -390,9 +394,12 @@ map_plot + coord_cartesian(xlim=c(zoom_plot_x_min,zoom_plot_x_max),
 
 # child bilingualism map
 ```{r}
-cutoff= 7241271
+cutoff= 7041271
 
-essential_gma_labels = gma_labels %>% filter(short_label %in% good_labels)
+essential_gma_labels = gma_labels %>% filter(short_label %in% c("Calgary", "Edmonton", "Halifax", "Regina", "Vancouver", 
+"Victoria", "Winnipeg",
+                                                              "Montréal", # comment out for poster map
+                                                              "Toronto")) # comment out for poster map
 map_plot + 
   # Montreal, Ottawa,Toronto
 geom_label_repel(data          = subset(essential_gma_labels,  long > cutoff),
@@ -412,7 +419,7 @@ geom_label_repel(data          = subset(essential_gma_labels,  long > cutoff),
     vjust         = 1
   ) 
 
- ggsave(here::here("03_output","01_figures","canada_map_most_labels.png"), width = 13, height =7)
+ ggsave(here::here("03_output","01_figures","canada_map_most_labels_en.png"), width = 13, height =7)
 
 ```
 

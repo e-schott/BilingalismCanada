@@ -41,6 +41,31 @@ library(ggrepel)
 ```{r}
 idata_child = readRDS(file = here::here("01_datasets","02_processed_data", "Individuals_child_data.rdata"))
 ```
+# Canada-wide
+```{r}
+idata_child_lang_combo_can = idata_child %>% 
+  mutate(N_respondents = n())%>% 
+  filter(N_Two_or_more > 1 ) %>%
+  group_by(Lang_Combo_top2) %>%
+  summarize(N=n())%>%
+  mutate( Percent = round(N/sum(N),3)) %>%
+  arrange(-N)
+
+idata_child_lang_combo_long %>% group_by(PR) %>% summarize(mean(N_respondents_by_province))
+```
+# by city 
+```{r}
+idata_child_lang_combo_CMA= idata_child %>% 
+  group_by(CMA) %>%
+  mutate(N_respondents_by_CMA = n())%>% ungroup() %>%
+  filter(N_Two_or_more > 1 , CMA != "Other census metropolitan areas, census agglomerations and o") %>%
+  group_by(CMA,N_respondents_by_CMA,Lang_Combo_top2) %>%
+  summarize(N=n())%>%
+  mutate( Percent = round(N/sum(N),3),
+          Percent_of_total_CMA = round(N/N_respondents_by_CMA,3)*100) %>%
+  arrange(CMA, -N)
+```
+
 
 # process data
 
