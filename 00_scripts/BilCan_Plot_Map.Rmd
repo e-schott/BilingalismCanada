@@ -116,7 +116,7 @@ idata_child = readRDS(file = here::here("01_datasets","02_processed_data", "Indi
 gma_LangGroup_data = idata_child %>%
   group_by(PR,CMA,N_Two_or_more) %>%
   summarize(N=n()) %>%
-    mutate( Percent = round(N/sum(N),3))%>% 
+    mutate( Percent = round(N/sum(N),2))%>% 
     filter(N_Two_or_more != "1") 
     
 
@@ -134,17 +134,15 @@ table_prov = idata_child %>%
 
 table_city = idata_child %>%
   group_by(PR,CMA,N_Two_or_more) %>%
-  summarize(N_city=n()) %>%
+  summarize(N=n()) %>%
   
-    mutate( Percent_city = percent(N_city/sum(N_city),1)) %>%
+    mutate( Percent_city = percent(N/sum(N),1)) %>%
   ungroup() %>%
 mutate(      CMA = ifelse(CMA =="Other census metropolitan areas, census agglomerations and o","_other",as.character(CMA)))%>% 
     filter(N_Two_or_more != "1")  %>%
   select(-N_Two_or_more) %>%
-  arrange(CMA,-N_city) %>% filter(N_city >250 ) 
-table_poster = full_join( table_prov, table_city %>% rename(N= N_city, Percent = Percent_city) ) %>% select(PR, CMA,total, N, Percent) %>%
-  arrange(PR)
-write.csv(table_poster, file=here("03_output","Table.csv"),row.names = F)
+  arrange(CMA,-N) %>% filter(N >250 ) 
+
 
 ```
 
@@ -162,6 +160,19 @@ northern_data = data.frame(PR= rep("Northern Canada",3), id = c("Yukon", "Northw
 province_data  = province_data %>% full_join(northern_data) %>%
   mutate(id = ifelse(is.na(id), as.character(PR), as.character(id)))
 
+```
+## save data for poster table
+```{r}
+table_otherCMA = province_data %>% group_by(PR) %>% slice(1) %>% ungroup() %>% select(-id, -N) %>%
+  mutate(Percent = percent(Percent, 1))
+
+
+table_poster = table_prov %>% full_join(table_city %>% 
+  rename( Percent = Percent_city))  %>% 
+  full_join(table_otherCMA) %>%
+  select(PR, CMA,total, N, Percent) %>%
+  arrange(PR)
+write.csv(table_poster, file=here("03_output","Table.csv"),row.names = F)
 ```
 
 ## match cma data to map data

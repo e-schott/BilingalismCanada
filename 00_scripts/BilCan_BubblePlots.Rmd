@@ -46,12 +46,13 @@ idata_child = readRDS(file = here::here("01_datasets","02_processed_data", "Indi
 idata_child_lang_combo_can = idata_child %>% 
   mutate(N_respondents = n())%>% 
   filter(N_Two_or_more > 1 ) %>%
-  group_by(Lang_Combo_top2) %>%
+  group_by(Lang_Combo_top2, N_respondents) %>%
   summarize(N=n())%>%
-  mutate( Percent = round(N/sum(N),3)) %>%
+  mutate( Percent = round(N/N_respondents,3)) %>%
+  select(-N_respondents) %>%
   arrange(-N)
 
-idata_child_lang_combo_long %>% group_by(PR) %>% summarize(mean(N_respondents_by_province))
+#idata_child_lang_combo_long %>% group_by(PR) %>% summarize(mean(N_respondents_by_province))
 ```
 # by city 
 ```{r}
