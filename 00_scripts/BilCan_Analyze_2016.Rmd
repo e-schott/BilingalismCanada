@@ -1,32 +1,44 @@
 ---
 title: "Census Bilingualism Analysis"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 author: Esther Schott
 please email esther.schott@mail.concordia.ca if you have any questions
 see poster created from this script: https://osf.io/4gekn/
 
 # 1. Preparation Steps
-## 1.1. load packages
+## Script settings
+```{r}
+load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
+use_reduced_data_set = TRUE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
+```
+
+## load packages
 ```{r echo=FALSE}
+library(here)
 library(tidyverse)
-library(foreign) # for reading in SPSS files
+library(rio) # for reading in SPSS files
+library(labelled)
 library(cowplot)
 library(viridis)
 library(janitor)
 
+library(codebook)
+
 # for map stuff
-library(rworldmap)
-library(ggmap)
-library(rgdal)
-library(maps)
+#library(rworldmap)
+#library(ggmap)
+#library(rgdal)
+#library(maps)
 library(scales)
 # for circle plots
 # install.packages("packcircles")
-library(packcircles)
+#library(packcircles)
 ```
 
-## 1.2. function necessary to read in stuff
+## function necessary to read in spss
 see https://dadoseteorias.wordpress.com/2017/04/29/read-spss-duplicated-levels/
 for more info
 ```{r}
@@ -50,9 +62,9 @@ Int2Factor <- function(x)
 ```
 
 
-## 2.0. individuals file preparation
+# INDIVIDUALS dataset
 
-### 2.0.1. read in invididuals file
+###  read in invididuals file
 
 ```{r}
 
@@ -60,10 +72,12 @@ Int2Factor <- function(x)
 
 
 # 2016 data files
-if(!exists("raw_idata")) {
-raw_idata = read.spss("01_datasets/pumf-98M0001-E-2016-individuals_F1.sav", 
-                      to.data.frame = T, 
-                      use.value.labels = F)}
+if(load_data_from_raw == TRUE) {
+raw_idata = import(here("01_datasets/pumf-98M0001-E-2016-individuals_F1.sav"), 
+                      format = "sav")
+saveRDS(raw_idata, here("03_output/00_processed_data/idata_raw.Rdata"))} else {
+raw_idata =   readRDS(here("03_output/00_processed_data/idata_raw.Rdata"))
+}
 
 
 # convert strings to factors 
@@ -84,21 +98,30 @@ idata_short = idata %>% select(variables.keep)
 idata_short$Child0_1 = factor(idata_short$PKID0_1, labels=c("NotAvailable","1+","0"))
 idata_short$Child2_5 = factor(idata_short$PKID2_5, labels=c("NotAvailable","1+","0"))
 
-# create adult variable... 
-idata_short$adult = ifelse(as.integer(idata_short$AGEGRP)<16, "adult","child")
+# create age_bracket variable... 
+idata_short$age_bracket = ifelse(as.integer(idata_short$AGEGRP)<16, "adult","child")
 
 idata_short = idata_short %>%
   rename(caseID = "PPSORT")
 
 
 ```
-### 2.0.2. change factor levels & variable names for language variables
+## use subset of full data (for troubleshooting)
+```{r}
+if(use_reduced_data_set == TRUE) {
+  idata_short = idata_short %>%
+    sample_n(50000)
+}
+```
 
+
+###  change factor levels & variable names for language variables
+this needs to be cleaned up & shortened (Esther)
 ```{r}
 
 
 
-# change factor levels for part a (most often)
+# change factor levels for question part a ("language used most often")
 idata_short$HLA_En = factor(idata_short$HLAEN, labels= c(NA,T,F))
 levels(idata_short$HLA_En) <- list(NotAvailable = NA,English = "TRUE",N="FALSE")
 levels(idata_short$HLA_En)[levels(idata_short$HLA_En)=='NotAvailable'] <- NA
@@ -133,6 +156,7 @@ levels(idata_short$HLB_Oth) <- list(Other = "TRUE",N="FALSE")
 ```
 
 ### convert from wide to long
+For easier counting of languages etc.
 ```{r}
 old_language_cols = c("HLAEN","HLAFR", "HLANO","HLBEN",  "HLBFR", "HLBNO" )
 idata_long = idata_short %>% 
@@ -146,7 +170,7 @@ idata_long = idata_short %>%
 
 ```
 
-# create bilingualism variable (wide df)
+#### create bilingualism variable (wide df)
 ```{r}
 idata_long = idata_long %>%
  mutate(language_reported = if_else(answer =="N",0,1)) %>%
@@ -168,7 +192,7 @@ idata_long = idata_long %>% ungroup()
 
 ```
 
-# get back to one-case-one-row
+#### get back to wide (one-case-one-row)
 ```{r}
 idata_wide = idata_long %>% select(-lang_question, -answer, -language_reported) %>%
   distinct()
@@ -176,35 +200,22 @@ idata_wide = idata_long %>% select(-lang_question, -answer, -language_reported) 
 
 
 
-### 2.0.4. geographical location
+### create variable for geographical locations of interest
 ```{r}
-# idata_long$gma.interest = ifelse(idata_long$CMA %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata_long$CMA), NA)
+idata_long$gma.interest = ifelse(idata_long$CMA %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata_long$CMA), NA)
 ```
- # individuals dataset: Children aged 0 to 4
-```{r}
-idata_child = idata_wide %>%
-  filter(AGEGRP == "0 to 4 years")
 
-
-idata_child %>% 
-  group_by(N_Two_or_more) %>%
-  summarize(N=n()) %>% 
-  mutate(N_Two_or_more = paste0("lang", N_Two_or_more)) %>%
-  spread(N_Two_or_more, N) %>% 
-  mutate(total = lang1+`lang2+`+langNA, 
-         percent_2plus_lang = `lang2+`/total)
-
-
-
-```
 
  
 
-# save idata_child for creating map
+## keep only children 0-4, save idata_child for creating map
 
 
 ```{r}
-saveRDS(idata_child, file = here::here("01_datasets","02_processed_data", "Individuals_child_data.rdata"))
+
+idata_child = idata_wide %>%
+  filter(AGEGRP == "0 to 4 years")
+saveRDS(idata_child, file = here::here("03_output","00_processed_data", "Individuals_child_data.rdata"))
 
   
 #gma_LangGroup_data = gma_LangGroup_data %>% 
@@ -215,15 +226,14 @@ saveRDS(idata_child, file = here::here("01_datasets","02_processed_data", "Indiv
 
 
 
-# 2. Individuals dataset: adults living with children under 5
-## 2.1.dataset description
-### 2.1.1. summary tables: children across canada
+#  Individuals dataset: descriptives
+### summary tables: children across canada
 check how distributions over province and metropolitain areas are
 ```{r}
 # select only adults who are living with at least one child
 idata_hh_child = idata_wide %>% 
   filter(PKID0_1 =="One or more" | PKID2_5 =="One or more") %>% 
-  filter(adult=="adult")
+  filter(age_bracket=="adult")
 
 # how many are there per province & area?
 idata_hh_child %>% group_by(PR, CMA) %>%
@@ -245,144 +255,233 @@ idata_child %>% group_by(CMA) %>%
 # top metropolitain areas are: Toronto, Montréal, Vancouver Calgary, Ottawa - Gatineau, Edmonton (cutoff could be 5000 individuals?)
 
 ```
-## 2.2. bilingualism in children in individuals dataset
-### 2.2.1. summary table: bilingual children across canada
+## bilingualism in children in individuals dataset
+#### summary table: bilingual children across canada
 
 ```{r}
-idata_short %>% filter(adult == "child") %>%
-  group_by(AGEGRP, LangGroup_individual) %>%
-  summarize(N=n()) %>%
-  spread(LangGroup_individual, N) %>%
-  clean_names() %>%
-  mutate(total = one_language+two_or_more, percent = two_or_more/total)
+# commented out because I need to fix langGroup
+# idata_short %>% filter(age_bracket == "child") %>%
+#   group_by(AGEGRP, LangGroup_individual) %>%
+#   summarize(N=n()) %>%
+#   spread(LangGroup_individual, N) %>%
+#   clean_names() %>%
+#   mutate(total = one_language+two_or_more, percent = two_or_more/total)
 
 
 ```
 
-### 2.2.2 summary tables: bilingual children under 6yo by province & metropolitan area
+#### summary tables: bilingual children under 6yo by province & metropolitan area
 ```{r}
-idata_short %>% filter(AGEGRP == "0 to 4 years"| AGEGRP =="5 to 6 years") %>%
-  group_by(gma.interest, LangGroup_individual) %>%
-  summarize(N=n()) %>%
-  spread(LangGroup_individual, N) %>%
-  clean_names() %>%
-  mutate(total = one_language+two_or_more, percent = round(two_or_more/total,3)) 
+# commented out because I need to fix langGroup
+
+# idata_short %>% filter(AGEGRP == "0 to 4 years"| AGEGRP =="5 to 6 years") %>%
+#   group_by(gma.interest, LangGroup_individual) %>%
+#   summarize(N=n()) %>%
+#   spread(LangGroup_individual, N) %>%
+#   clean_names() %>%
+#   mutate(total = one_language+two_or_more, percent = round(two_or_more/total,3)) 
 
 ```
 
 
-## 2.3. summary tables: number of bilingual adults living with a child under 5
+#### summary tables: number of bilingual adults living with a child under 5
 
 ```{r}
+# commented out because I need to fix langGroup
 
-
-idata_child %>%
-  filter(Child0_1 == "1+"  ) %>%
-  group_by(LangGroup_individual) %>%
-  summarize(Count = n())%>%
-  mutate(           Percent = Count/sum(Count))
-
-# broken down by key metropolotain areas
-
-idata_child %>%
-  filter(!is.na(gma.interest)& Child0_1 == "1+" |Child2_5=="1+") %>%
-  group_by( gma.interest, LangGroup_individual) %>%
-  summarize(Count = n())%>%
-  mutate(           Percent = Count/sum(Count)) 
-  
-
-
-# need to investigate what to do with these NA in other language
-idata_child %>% filter(is.na(LangGroup)) %>% 
-  group_by(LangPair_simplified) %>% 
-  summarize(count=n())
-
-# look at 2-5 year olds
-idata_child %>% 
-  filter(Child2_5 == "1+") %>%
-  group_by(LangGroupBil) %>%
-  summarize(Count = n())  %>%
-  mutate(           Percent = Count/sum(Count))
+# 
+# idata_child %>%
+#   filter(Child0_1 == "1+"  ) %>%
+#   group_by(LangGroup_individual) %>%
+#   summarize(Count = n())%>%
+#   mutate(           Percent = Count/sum(Count))
+# 
+# # broken down by key metropolotain areas
+# 
+# idata_child %>%
+#   filter(!is.na(gma.interest)& Child0_1 == "1+" |Child2_5=="1+") %>%
+#   group_by( gma.interest, LangGroup_individual) %>%
+#   summarize(Count = n())%>%
+#   mutate(           Percent = Count/sum(Count)) 
+#   
+# 
+# 
+# # need to investigate what to do with these NA in other language
+# idata_child %>% filter(is.na(LangGroup)) %>% 
+#   group_by(LangPair_simplified) %>% 
+#   summarize(count=n())
+# 
+# # look at 2-5 year olds
+# idata_child %>% 
+#   filter(Child2_5 == "1+") %>%
+#   group_by(LangGroupBil) %>%
+#   summarize(Count = n())  %>%
+#   mutate(           Percent = Count/sum(Count))
 
 # these look relatively the same as the one-year olds, focus on the one-year olds becuase they are our population of interest and 2-5 year olds likely get more exposure outside of the house (not captured in this survey)
 ```
 
 
-#3.  Households dataset
-## 3.1. read in dataset & data cleaning
+#  HOUSEHOLDS dataset
+
+## To Dos:
+- Total income still has SPSS style missing values (9999999), need to replace with NA and see if that is the case for others too
+- need to clean up HLANO (remove  language names in parentheses, make labels less wordy...)
 ```{r}
-# need to change to reading in factor solution as above
-raw_hdata = read.spss("01_datasets/NHS-99M002X-E-2011-pumf-hierarchical_F1.sav",to.data.frame=T, use.value.labels = F)
-
-
-# convert strings to factors 
-raw_hdata <- lapply(raw_hdata, Int2Factor)
-# convert list to dataframe
-raw_hdata <- as.data.frame(raw_hdata, stringsAsFactors = FALSE)
-
-# select which variables are necessary for our analysis
-variables.hkeep = c("HH_ID","PP_ID",
-  "PR","CMA", # location: province & metropolitain area
-                   "AGEGRP",  # age of person
-                   "HLAEN","HLAFR","HLANO", # home language part A
-                   "HLBEN","HLBFR","HLBNO") #home language part B
-hdata_short = raw_hdata %>% select(variables.hkeep)
 
 ```
 
-## 3.2. look at only households with children 9 and under
+
+## read in dataset 
+```{r}
+# need to change to reading in factor solution as above
+if(load_data_from_raw == TRUE) {
+  raw_hhdata = rio::import(here("01_datasets/Census-98M0002X-E-2016-Hierarchial_F1.sav"),format = "sav")
+  saveRDS(raw_hhdata, here("03_output/00_processed_data/hdata_raw.Rdata"))} else {
+  raw_hhdata = readRDS(here("03_output/00_processed_data/hdata_raw.Rdata"))
+}
+
+  
+
+
+
+
+
+
+```
+## data cleaning - general
+### convert to categorical variables to factors to see variable labels
+```{r}
+# make factor - the spss variable has all variables stored as numeric, which makes them read into R as numeric (which means it doesn't show labels present in the dataset). Can use factorize to remedy that: 
+
+# the columns I keep here were just a selection  made quickly, see user guide to see others potentially interesting
+columns_to_convert_to_factor = c("PR","CMA", "AGEGRP", "SEX", "SSGRAD", 
+                                 # place of birth:
+                                 "POB", "POBF", "POBM",
+                                 # native language:
+                                 "MTNEn", "MTNFr", "MTNNO",
+                                 #home language (most often)
+                         "HLAEN", "HLAFR", "HLANO", 
+                         # home language (regularly)
+                         "HLBEN", "HLBFR", "HLBNO", 
+                         # immigration, income, etc.
+                         "YRIMM", "VISMIN", "IMMSTAT", "CITIZEN")
+
+# batch convert to factor
+raw_hhdata = raw_hhdata %>%
+  mutate_at(.vars = vars(columns_to_convert_to_factor),
+             .funs = factorize)
+# now, instead of numbers e.g. for provice we see the actual label in the df
+```
+
+
+### select variables of interest
+```{r}
+# select which variables are necessary for our analysis
+# keep all that we've converted to factor, and Household and person id, which are numeric so didn't need to convert to factor
+variables.hkeep = c("HH_ID","PP_ID", "TOTINC_AT",
+  columns_to_convert_to_factor) #home language part B
+hhdata = raw_hhdata %>% select(variables.hkeep)
+```
+
+
+### create variable for households with children 9 and under
 
 ```{r}
 # create a variable that says whether child younger than 10 lives in household
 
 
-hdata_short = hdata_short %>% 
-  mutate(Child0_9 = ifelse(AGEGRP == "0 to 9 years", 1,0)) %>%
+hhdata = hhdata %>% 
+  mutate(child0_9 = ifelse(AGEGRP == "0 to 9 years", 1,0)) %>%
     group_by(HH_ID) %>%
-  mutate(Child0_9_sum = sum(Child0_9))
-
-```
-
-## 3.3. refactor  language variables for easier coding
-```{r}
-## please note: I am using a hack here where I convert all of the "No" answers to NA - makes it much easier to count how many languages are observed overall and makes it easier to combine the languages to get language combinations. not ideal if we want to report number of missing values???
-
-
-# change factor levels for part a (most often)
-hdata_short$HLA_En = factor(hdata_short$HLAEN, labels= c(T,F))
-levels(hdata_short$HLA_En) <- list(English = "TRUE",N="FALSE")
-levels(hdata_short$HLA_En)[levels(hdata_short$HLA_En)=='N'] <- NA
-
-
-hdata_short$HLA_Fr = factor(hdata_short$HLAFR, labels= c(T,F))
-levels(hdata_short$HLA_Fr) <- list(French = "TRUE",N="FALSE")
-levels(hdata_short$HLA_Fr)[levels(hdata_short$HLA_Fr)=='N'] <- NA
-
-
-hdata_short$HLA_Oth = factor(hdata_short$HLANO)
-levels(hdata_short$HLA_Oth)[levels(hdata_short$HLA_Oth)=='No non-official language'] <- NA
-levels(hdata_short$HLA_Oth)[levels(hdata_short$HLA_Oth)=='All other single languages'] <- "other"
-
-# change for question part b (regular use)
-hdata_short$HLB_En = factor(hdata_short$HLBEN, labels= c(T,F))
-levels(hdata_short$HLB_En) <- list(English = "TRUE",N="FALSE")
-levels(hdata_short$HLB_En)[levels(hdata_short$HLB_En)=='N'] <- NA
-
-hdata_short$HLB_Fr = factor(hdata_short$HLBFR, labels= c(T,F))
-levels(hdata_short$HLB_Fr) <- list(French = "TRUE",N="FALSE")
-levels(hdata_short$HLB_Fr)[levels(hdata_short$HLB_Fr)=='N'] <- NA
-
-
-hdata_short$HLB_Oth = factor(hdata_short$HLBNO, labels = c(T, F))
-levels(hdata_short$HLB_Oth) <- list(other = "TRUE",N="FALSE")
-levels(hdata_short$HLB_Oth)[levels(hdata_short$HLB_Oth)=='N'] <- NA
+  mutate(number_of_children0_9 = sum(child0_9))
 
 
 
 ```
-###3.3.1. Create bilingualism variables (N languages, language pairs)
+
+### use subset of full data (for troubleshooting)
+This is necessary while creating the code because some code is SLOW. change use_reduced_data_set to change at the top of the script
+```{r}
+
+if(use_reduced_data_set == TRUE) {
+  # select X unique households to keep in subset
+  household_subsample = sample(unique(hhdata$HH_ID),
+                               20000)  
+  hhdata = hhdata %>%
+    filter(HH_ID %in% household_subsample)
+}
+
+```
+
+
+
+
+## data cleaning -   language variables
+```{r}
+
+#make this simpler
+
+
+hhdata = hhdata %>%
+  mutate_at( .vars = vars(HLAEN, HLAFR, HLBEN, HLBFR, HLBNO),
+             ~ fct_relabel(., ~str_remove(., '\\s*-.*')))
+
+# create a variable that functions like all other home language variables and just says true/false for HLANO  
+hhdata = hhdata %>% 
+  mutate(HLANO_trueFalse = case_when(
+    HLANO == "No non-official language" ~ "False",
+    HLANO == "Not available" ~ NA_character_,
+    !is.na(HLANO) ~ "True"
+  ))
+# test that this is working: 
+# table(hhdata$HLANO, hhdata$HLANO_trueFalse)
+
+
+
+```
+### calculate number of languages spoken (individual)
 
 ```{r}
+# count how many lanuages each person speaks:
+true_false_language_columns = c("HLAEN", "HLAFR", "HLANO_trueFalse","HLBEN", "HLBFR", "HLBNO")
+hhdata = hhdata  %>%
+  mutate(N_languages_individual = rowSums(.[true_false_language_columns] == "True", na.rm = TRUE),
+         N_languages_individual_cat = # make this a categorical variable
+           case_when(Nlang_individual == 0 ~ NA_character_,
+                     Nlang_individual == 1 ~ "One Language",
+                     Nlang_individual > 1 ~ "Two or more",
+                     TRUE ~ NA_character_))
+
+# check result:
+#View(hhdata %>% select(HH_ID, PP_ID, HLAEN:HLBNO, HLANO_trueFalse, N_languages_individual))
+
+
+```
+
+# create language pairs variable:
+
+```{r}
+# we need a column that says what languages that person speaks. So English_French, English&Italian&Other etc. 
+# if a person speaks a language at home (value is "True"), then copy the column name to new column lang_pair_ordered
+
+hhdata$lang_pair_ordered <- apply(hhdata[true_false_language_columns], 1, function(x) paste(names(x[x=="True"]), collapse="&"))
+
+
+# this takes a long time to run 
+# now we need to clean up the messy column names in each row:
+hhdata = hhdata %>%
+  mutate( lang_pair_ordered = str_remove(lang_pair_ordered, "(NA&)+|(&NA)+"), # remove NA in beginning and middle
+   lang_pair_ordered =str_remove(lang_pair_ordered,"&NA"), # remove NAs at End
+   lang_pair_ordered = str_replace(lang_pair_ordered, "(HLAEN)+|(HLBEN)+", "English"), # substite English column names with word english
+   lang_pair_ordered = str_replace(lang_pair_ordered, "(HLAFR)+|(HLBFR)+", "French"), # same for french
+   lang_pair_ordered = str_replace(lang_pair_ordered, "HLANO_trueFalse", as.character(HLANO)),
+   lang_pair_ordered = str_replace(lang_pair_ordered, "HLBNO", "Other") # for HLBNO we don't know language, just call it other
+   )
+
+# check result:
+#View(hhdata %>% select(HH_ID, PP_ID, HLAEN:HLBNO, HLANO_trueFalse, N_languages_individual, lang_pair_ordered))
+
 
 # this takes a while to run! there are probably more efficient versions of this.. 
 hdata_short = hdata_short %>%
@@ -408,12 +507,18 @@ hdata_short$LangPair_isimplified  = gsub("other_other", "other", hdata_short$Lan
 
 
 
-
-## 3.4. summary tables: children under 9 years
+## restrict to Households with kids under 10
 ```{r}
- 
-hdata_child = hdata_short %>%
-  filter(Child0_9_sum >0)
+# restrict to kids under 10
+# keep only households that have at least one child under 10
+hhdata_child = hhdata %>%
+  filter(number_of_children0_9 >0)
+```
+
+
+## summary tables: children under 9 years
+```{r}
+
 
 # number of bilinguals
 #canadian average:
@@ -448,7 +553,7 @@ hdata_child_langPair=hdata_child_langPair %>% group_by(PR) %>%
   mutate(id=seq_along(Percent))
 
 # add nicer language labels to graph
-dict = read.csv(file= "LangPair_Dict.csv")
+dict = read_csv(file= here("01_datasets","LangPair_Dict.csv"))
 hdata_child_langPair = full_join(hdata_child_langPair, dict)
 
 
