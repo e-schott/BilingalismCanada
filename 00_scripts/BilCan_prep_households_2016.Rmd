@@ -1,5 +1,5 @@
 ---
-title: "Census Bilingualism Analysis"
+title: "Census Bilingualism Pre-processing HOUSEHOLDS"
 output:
   html_document:
     df_print: paged
@@ -37,20 +37,14 @@ library(scales)
 
 #  HOUSEHOLDS dataset
 
-## To Dos:
-- some variables have SPSS style missing values (9999999), but I don't think we're using any of them?
-- need to clean up lang_most_oth_write_in (remove  language names in parentheses, make labels less wordy...)
-- need to create simpified lang_pair_ordered variable that does not take order into account (treats English_French and French_English the same) - but maybe this is only needed for plotting and not for regression?
-```{r}
 
-```
 
 
 ## read in dataset 
 ```{r}
 # need to change to reading in factor solution as above
 if(load_data_from_raw == TRUE) {
-  raw_hhdata = rio::import(here("01_datasets/pumf-98M0002-E-2016-hierarchical_F1.sav"),format = "sav")
+  raw_hhdata = rio::import(here("01_datasets/pumf-98M0002-E-2016-hierarchical_F1.sav"),format = "sav", user_na = c("Not available", "88888888", "99999999"))
   saveRDS(raw_hhdata, here("03_output/00_processed_data/hdata_raw.Rdata"))} else {
   raw_hhdata = readRDS(here("03_output/00_processed_data/hdata_raw.Rdata"))
 }
