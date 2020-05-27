@@ -1,0 +1,320 @@
+---
+title: "Census Bilingualism Analysis"
+output:
+  html_document:
+    df_print: paged
+---
+author: Esther Schott
+please email esther.schott@mail.concordia.ca if you have any questions
+see poster created from a previous version of this script: https://osf.io/4gekn/
+
+# 1. Preparation Steps
+## Script settings
+```{r}
+load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
+
+use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
+```
+
+## load packages
+```{r echo=FALSE}
+library(here)
+library(tidyverse)
+library(rio) # for reading in SPSS files
+library(labelled)
+#library(cowplot)
+#library(viridis)
+library(janitor)
+
+library(codebook)
+
+
+library(scales)
+
+```
+
+
+
+#  HOUSEHOLDS dataset
+
+## To Dos:
+- some variables have SPSS style missing values (9999999), but I don't think we're using any of them?
+- need to clean up lang_most_oth_write_in (remove  language names in parentheses, make labels less wordy...)
+- need to create simpified lang_pair_ordered variable that does not take order into account (treats English_French and French_English the same) - but maybe this is only needed for plotting and not for regression?
+```{r}
+
+```
+
+
+## read in dataset 
+```{r}
+# need to change to reading in factor solution as above
+if(load_data_from_raw == TRUE) {
+  raw_hhdata = rio::import(here("01_datasets/pumf-98M0002-E-2016-hierarchical_F1.sav"),format = "sav")
+  saveRDS(raw_hhdata, here("03_output/00_processed_data/hdata_raw.Rdata"))} else {
+  raw_hhdata = readRDS(here("03_output/00_processed_data/hdata_raw.Rdata"))
+}
+
+#dict = tibble(old_name = names(raw_hhdata), explanation = var_label(raw_hhdata))
+#export(dict, file = here("01_datasets/ColNamesDict.csv"))
+hh_column_names = import(here("01_datasets/ColNamesDict.csv"))
+
+
+
+
+```
+## data cleaning - general
+
+### clean up column names
+```{r}
+# we only want to rename columns that we created a new name for
+hh_column_names_keep = hh_column_names %>%
+  filter(new_name!="")
+# rename columns to new name
+# pull() is necessary to convert column to vector (which rename_at expects)
+raw_hhdata = raw_hhdata %>% rename_at(vars(pull(hh_column_names_keep,old_name)), ~ pull(hh_column_names_keep,new_name))
+```
+### convert to categorical variables to factors to see variable labels
+```{r}
+# make factor - the spss variable has all variables stored as numeric, which makes them read into R as numeric (which means it doesn't show labels present in the dataset). Can use factorize to remedy that 
+
+# from the column dictionary, keep only columns that are categorical 
+columns_to_convert_to_factor = hh_column_names %>%
+  filter(type == "categorical") %>%
+  mutate(current_name = if_else(new_name== "", old_name, new_name)) %>% # some of these columns have been renamed, use new name if it was renamed
+  pull(current_name)
+
+
+# batch convert to factor
+# this takes a bit long
+raw_hhdata = raw_hhdata %>%
+  mutate_at(.vars = vars(columns_to_convert_to_factor),
+             .funs = factorize)
+# now, instead of numbers e.g. for provice we see the actual label in the df
+```
+
+
+
+### select variables of interest
+```{r}
+# select which variables are necessary for our analysis
+# keep all that we have renamed (to include more, edit the ColNamesDict.csv in datasets folder)
+
+hhdata = raw_hhdata %>% select(pull(hh_column_names_keep, new_name))
+```
+
+
+
+
+
+### create variable for households with children 9 and under
+
+```{r}
+# create a variable that says whether child younger than 10 lives in household
+
+
+hhdata = hhdata %>% 
+  mutate(child0_9 = ifelse(age_group == "0 to 9 years", 1,0)) %>%
+    group_by(household_id) %>%
+  mutate(children_per_hh = sum(child0_9)) %>%
+  ungroup()
+
+
+
+```
+
+### use subset of full data (for troubleshooting)
+This is necessary while creating the code because some code is SLOW. change use_reduced_data_set to change at the top of the script
+```{r}
+
+if(use_reduced_data_set == TRUE) {
+  # select X unique households to keep in subset
+  household_subsample = sample(unique(hhdata$household_id),
+                               20000)  
+  hhdata = hhdata %>%
+    filter(household_id %in% household_subsample)
+}
+
+```
+
+### clean up area variable
+```{r}
+hhdata = hhdata %>%
+  mutate(area = sub(" .*", "", area))
+
+```
+
+
+
+## data cleaning -   language variables
+```{r}
+
+#make this simpler
+
+
+hhdata = hhdata %>%
+  mutate_at( .vars = vars(lang_most_eng, lang_most_fre, lang_regular_eng, lang_regular_fre, lang_regular_oth),
+             ~ fct_relabel(., ~str_remove(., '\\s*-.*')))
+
+# create a variable that functions like all other home language variables and just says true/false for lang_most_oth_write_in  
+hhdata = hhdata %>% 
+  mutate(lang_most_oth = case_when(
+    lang_most_oth_write_in == "No non-official language" ~ "False",
+    lang_most_oth_write_in == "Not available" ~ NA_character_,
+    !is.na(lang_most_oth_write_in) ~ "True"
+  ))
+# test that this is working: 
+# table(hhdata$lang_most_oth_write_in, hhdata$lang_most_oth)
+
+
+
+```
+### clean up Write-in component for non-official languages
+```{r}
+hhdata = hhdata %>%
+  
+  mutate(lang_most_oth_write_in = case_when(
+    lang_most_oth_write_in == "No non-official language" ~ "",
+    lang_most_oth_write_in == "Not available" ~ NA_character_,
+    lang_most_oth_write_in == "All other single languages" ~ "Other",
+    TRUE ~  sub(" .*", "", lang_most_oth_write_in)
+  ))
+    
+```
+
+
+
+### calculate number of languages spoken (individual)
+
+```{r}
+# count how many lanuages each person speaks:
+true_false_language_columns = c("lang_most_eng", "lang_most_fre", "lang_most_oth","lang_regular_eng", "lang_regular_fre", "lang_regular_oth")
+
+hhdata = hhdata  %>% 
+  mutate(N_languages_person_numeric = rowSums(.[true_false_language_columns] == "True", na.rm = TRUE),
+         N_languages_person = # make this a categorical variable
+           case_when(N_languages_person_numeric == 0 ~ NA_character_,
+                     N_languages_person_numeric == 1 ~ "One Language",
+                     N_languages_person_numeric > 1 ~ "Two or more",
+                     TRUE ~ NA_character_))
+
+# check result:
+#View(hhdata %>% select(household_id, person_id, lang_most_eng:lang_regular_oth, lang_most_oth, N_languages_individual))
+
+
+```
+
+### create language pairs variable
+
+```{r}
+# we need a column that says what languages that person speaks. So English_French, English&Italian&Other etc. 
+# if a person speaks a language at home (value is "True"), then copy the column name to new column lang_pair_ordered
+
+# sorted by most spoken then regularly spoken languages (for the person)
+hhdata$lang_pair_ordered <- apply(hhdata[true_false_language_columns], 1, function(x) paste(names(x[x=="True"]), collapse="&"))
+
+
+
+# this takes a long time to run 
+# now we need to clean up the messy column names in each row:
+hhdata = hhdata %>%
+  mutate( lang_pair_ordered = str_remove(lang_pair_ordered, "(NA&)+|(&NA)+"), # remove NA in beginning and middle
+   lang_pair_ordered =str_remove(lang_pair_ordered,"&NA"), # remove NAs at End
+   lang_pair_ordered = str_replace(lang_pair_ordered, "(lang_most_eng)+|(lang_regular_eng)+", "English"), # substite English column names with word english
+   lang_pair_ordered = str_replace(lang_pair_ordered, "(lang_most_fre)+|(lang_regular_fre)+", "French"), # same for french
+   lang_pair_ordered = str_replace(lang_pair_ordered, "lang_most_oth", as.character(lang_most_oth_write_in)),
+   lang_pair_ordered = str_replace(lang_pair_ordered, "lang_regular_oth", "Other") # for lang_regular_oth we don't know language, just call it other
+   )
+
+# check result:
+#View(hhdata %>% select(household_id, person_id, lang_most_eng:lang_regular_oth, lang_most_oth, N_languages_individual, lang_pair_ordered))
+
+
+
+
+```
+### create variables for each language in dataset
+```{r}
+
+hhdata  =  hhdata %>%
+  separate(lang_pair_ordered, c("lang1", "lang2", "lang3", "lang4"), remove = FALSE)
+# warning that not all people have 4 languages is normal
+```
+
+
+
+### simplify language pairs variable (sorted A-Z)
+```{r}
+
+# remove order by most spoken then regularly spoken languages (now sorted by A-Z)
+hhdata$lang_pair <- apply(hhdata[c("lang1", "lang2", "lang3","lang4")], 1, function(x) paste(sort(x[!is.na(x)]), collapse="&"))
+
+```
+## get columns back in alphabetical order
+```{r}
+hhdata = hhdata %>% select(sort(names(hhdata)))
+```
+
+
+# Descriptives
+## keep only households with kids under 10
+```{r}
+# restrict to kids under 10
+# keep only households that have at least one child under 10
+hhdata_child = hhdata %>%
+  filter(children_per_hh >0)
+```
+
+
+## summary tables: children under 9 years
+```{r}
+
+
+# number of bilinguals
+#canadian average:
+hhdata_child %>%
+filter(age_group=="0 to 9 years") %>%
+  group_by(N_languages_person) %>%
+  summarize(N=n()) %>%
+    mutate( Percent = N/sum(N)) 
+
+
+
+
+
+(area_lang_data = hhdata_child %>%
+filter(age_group=="0 to 9 years") %>%
+  group_by(province,area,N_languages_person) %>%
+  summarize(N=n()) %>%
+    mutate( Percent = round(N/sum(N),3))%>%
+    filter(N_languages_person != "One Language"))
+
+
+# # specific language combos
+ hhdata_child_langPair = hhdata_child %>%
+   filter(age_group=="0 to 9 years",N_languages_person_numeric>1 ) %>%
+   group_by(province,lang_pair) %>%
+   summarize(N=n())%>%
+   mutate( Percent = round(N/sum(N),3))%>%
+   arrange(province, -N)
+
+ hhdata_child_langPair=hhdata_child_langPair %>% group_by(province) %>%
+   slice(1:5) %>%
+   mutate(id=seq_along(Percent))
+
+# add nicer language labels to graph (need to adapt to new data)
+#lang_dict = read_csv(file= here("01_datasets","LangPair_Dict_2016.csv"))
+#hhdata_child_langPair = full_join(hhdata_child_langPair, lang_dict, by = c("lang_pair"= "Lang_Combo_top2" )
+
+
+```
+
+# export for analysis in other scripts
+```{r}
+
+# this contains ALL households (in case another analysis needs all data)
+export(hhdata, file = here("03_output/00_processed_data/hhdata_preprocessed.Rdata"))
+```
+
+
+

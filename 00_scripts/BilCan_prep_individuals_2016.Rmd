@@ -1,0 +1,291 @@
+---
+title: "Census Bilingualism Analysis"
+output:
+  html_document:
+    df_print: paged
+---
+author: Esther Schott
+please email esther.schott@mail.concordia.ca if you have any questions
+see poster created from this script: https://osf.io/4gekn/
+
+# 1. Preparation Steps
+## Script settings
+```{r}
+load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
+
+use_reduced_data_set = TRUE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
+```
+
+## load packages
+```{r echo=FALSE}
+library(here)
+library(tidyverse)
+library(rio) 
+library(labelled)
+library(janitor)
+library(codebook)
+
+```
+
+
+
+
+# INDIVIDUALS dataset
+
+###  read in invididuals file
+
+```{r}
+
+
+
+
+# 2016 data files
+# need to update to most recent
+if(load_data_from_raw == TRUE) {
+raw_idata = import(here("01_datasets/pumf-98M0001-E-2016-individuals_F1.sav"), 
+                      format = "sav")
+saveRDS(raw_idata, here("03_output/00_processed_data/idata_raw.Rdata"))} else {
+raw_idata =   readRDS(here("03_output/00_processed_data/idata_raw.Rdata"))
+}
+
+
+# convert strings to factors 
+idata <- lapply(raw_idata, 
+                    Int2Factor)
+# convert list to dataframe
+idata <- as.data.frame(idata, 
+                           stringsAsFactors = FALSE)
+
+# select which variables are necessary for our analysis
+variables.keep = c("PPSORT", # individual case ID
+  "PR","CMA", # location: province & metropolitain area
+                   "AGEGRP","PKID0_1", "PKID2_5", # number of children between 0 and 1, and 2 and 5
+                   "HLAEN","HLAFR","HLANO", # home language part A
+                   "HLBEN","HLBFR","HLBNO", #home language part B
+                    "CFInc", "DPGRSUM")
+idata_short = idata %>% select(variables.keep)
+idata_short$Child0_1 = factor(idata_short$PKID0_1, labels=c("NotAvailable","1+","0"))
+idata_short$Child2_5 = factor(idata_short$PKID2_5, labels=c("NotAvailable","1+","0"))
+
+# create age_bracket variable... 
+idata_short$age_bracket = ifelse(as.integer(idata_short$AGEGRP)<16, "adult","child")
+
+idata_short = idata_short %>%
+  rename(caseID = "PPSORT")
+
+
+```
+## use subset of full data (for troubleshooting)
+```{r}
+if(use_reduced_data_set == TRUE) {
+  idata_short = idata_short %>%
+    sample_n(50000)
+}
+```
+
+
+###  change factor levels & variable names for language variables
+this needs to be cleaned up & shortened (Esther)
+```{r}
+
+
+
+# change factor levels for question part a ("language used most often")
+idata_short$HLA_En = factor(idata_short$HLAEN, labels= c(NA,T,F))
+levels(idata_short$HLA_En) <- list(NotAvailable = NA,English = "TRUE",N="FALSE")
+levels(idata_short$HLA_En)[levels(idata_short$HLA_En)=='NotAvailable'] <- NA
+
+
+idata_short$HLA_Fr = factor(idata_short$HLAFR, labels= c(NA,T,F))
+levels(idata_short$HLA_Fr) <- list(NotAvailable =NA, French = "TRUE",N="FALSE")
+levels(idata_short$HLA_Fr)[levels(idata_short$HLA_Fr)=='NotAvailable'] <- NA
+
+
+idata_short$HLA_Oth = factor(idata_short$HLANO)
+levels(idata_short$HLA_Oth)[levels(idata_short$HLA_Oth)=='No non-official language'] <- "N"
+levels(idata_short$HLA_Oth)[levels(idata_short$HLA_Oth)== 'Not available'] <- NA
+
+levels(idata_short$HLA_Oth)[levels(idata_short$HLA_Oth)=='All other languages'] <- "Other"
+
+# change for question part b (regular use)
+idata_short$HLB_En = factor(idata_short$HLBEN, labels= c(NA, T,F))
+levels(idata_short$HLB_En) <- list(NotAvailable =NA, English = "TRUE",N="FALSE")
+levels(idata_short$HLB_En)[levels(idata_short$HLB_En)=='NotAvailable'] <- NA
+
+idata_short$HLB_Fr = factor(idata_short$HLBFR, labels= c(NA,T,F))
+levels(idata_short$HLB_Fr) <- list(NotAvailable =NA, French = "TRUE",N="FALSE")
+levels(idata_short$HLB_Fr)[levels(idata_short$HLB_Fr)=='NotAvailable'] <- NA
+
+
+idata_short$HLB_Oth = factor(idata_short$HLBNO, labels = c(T, F))
+levels(idata_short$HLB_Oth) <- list(Other = "TRUE",N="FALSE")
+#levels(idata_short$HLB_Oth)[levels(idata_short$HLB_Oth)=='N'] <- NA
+
+
+```
+
+### convert from wide to long
+For easier counting of languages etc.
+```{r}
+old_language_cols = c("HLAEN","HLAFR", "HLANO","HLBEN",  "HLBFR", "HLBNO" )
+idata_long = idata_short %>% 
+  select(-old_language_cols) %>%
+  # cut down size of df for debugging
+  #sample_n(193000) %>%
+
+  gather(lang_question, answer,HLA_En:HLB_Oth) %>%
+  arrange(caseID)
+
+
+```
+
+#### create bilingualism variable (wide df)
+```{r}
+idata_long = idata_long %>%
+ mutate(language_reported = if_else(answer =="N",0,1)) %>%
+  group_by(caseID) %>%
+  mutate(N_Lang = sum(language_reported, na.rm=T),
+         N_Two_or_more = case_when(
+                                  N_Lang == 1 ~ "1",
+                                  N_Lang >1 ~ "2+",
+                                  is.na(N_Lang) ~ NA_character_),
+        # Lang_Combo_ranked = paste(answer[language_reported==1], 
+        #                           collapse ="_"),
+        # Lang_Combo_a_z = paste(sort(answer[language_reported==1]), 
+        #                        collapse ="_"),
+         Lang_Combo_top2 = paste(sort(answer[language_reported==1][1:2]), 
+                                 collapse ="_")) 
+
+idata_long = idata_long %>% ungroup()
+# idata_long %>% filter(N_Lang>1) %>% View()
+
+```
+
+#### get back to wide (one-case-one-row)
+```{r}
+idata_wide = idata_long %>% select(-lang_question, -answer, -language_reported) %>%
+  distinct()
+```
+
+
+
+### create variable for geographical locations of interest
+```{r}
+idata_long$gma.interest = ifelse(idata_long$CMA %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata_long$CMA), NA)
+```
+
+
+ 
+
+## keep only children 0-4, save idata_child for creating map
+
+
+```{r}
+
+idata_child = idata_wide %>%
+  filter(AGEGRP == "0 to 4 years")
+saveRDS(idata_child, file = here::here("03_output","00_processed_data", "Individuals_child_data.rdata"))
+
+  
+#gma_LangGroup_data = gma_LangGroup_data %>% 
+#  mutate(Area = agrep()
+
+```
+
+
+
+
+#  Individuals dataset: descriptives
+### summary tables: children across canada
+check how distributions over province and metropolitain areas are
+```{r}
+# select only adults who are living with at least one child
+idata_hh_child = idata_wide %>% 
+  filter(PKID0_1 =="One or more" | PKID2_5 =="One or more") %>% 
+  filter(age_bracket=="adult")
+
+# how many are there per province & area?
+idata_hh_child %>% group_by(PR, CMA) %>%
+  summarize(N=n()) %>% 
+  spread(PR, N)
+
+# breakdown by province
+idata_child %>% group_by(PR) %>%
+  summarize(N=n())
+
+# some provinces have  few data points. can probably concentrate on BC, Alberta, Ontario, Quebec
+
+
+
+# top metropolitain areas
+idata_child %>% group_by(CMA) %>%
+   summarize(N=n()) %>%
+  arrange(-N)
+# top metropolitain areas are: Toronto, Montréal, Vancouver Calgary, Ottawa - Gatineau, Edmonton (cutoff could be 5000 individuals?)
+
+```
+## bilingualism in children in individuals dataset
+#### summary table: bilingual children across canada
+
+```{r}
+# commented out because I need to fix langGroup
+# idata_short %>% filter(age_bracket == "child") %>%
+#   group_by(AGEGRP, N_languages_individual_cat) %>%
+#   summarize(N=n()) %>%
+#   spread(LangGroup_individual, N) %>%
+#   clean_names() %>%
+#   mutate(total = one_language+two_or_more, percent = two_or_more/total)
+
+
+```
+
+#### summary tables: bilingual children under 6yo by province & metropolitan area
+```{r}
+# commented out because I need to fix langGroup
+
+# idata_short %>% filter(AGEGRP == "0 to 4 years"| AGEGRP =="5 to 6 years") %>%
+#   group_by(gma.interest, LangGroup_individual) %>%
+#   summarize(N=n()) %>%
+#   spread(LangGroup_individual, N) %>%
+#   clean_names() %>%
+#   mutate(total = one_language+two_or_more, percent = round(two_or_more/total,3)) 
+
+```
+
+
+#### summary tables: number of bilingual adults living with a child under 5
+
+```{r}
+# commented out because I need to fix langGroup
+
+# 
+# idata_child %>%
+#   filter(Child0_1 == "1+"  ) %>%
+#   group_by(LangGroup_individual) %>%
+#   summarize(Count = n())%>%
+#   mutate(           Percent = Count/sum(Count))
+# 
+# # broken down by key metropolotain areas
+# 
+# idata_child %>%
+#   filter(!is.na(gma.interest)& Child0_1 == "1+" |Child2_5=="1+") %>%
+#   group_by( gma.interest, LangGroup_individual) %>%
+#   summarize(Count = n())%>%
+#   mutate(           Percent = Count/sum(Count)) 
+#   
+# 
+# 
+# # need to investigate what to do with these NA in other language
+# idata_child %>% filter(is.na(LangGroup)) %>% 
+#   group_by(LangPair_simplified) %>% 
+#   summarize(count=n())
+# 
+# # look at 2-5 year olds
+# idata_child %>% 
+#   filter(Child2_5 == "1+") %>%
+#   group_by(LangGroupBil) %>%
+#   summarize(Count = n())  %>%
+#   mutate(           Percent = Count/sum(Count))
+
+# these look relatively the same as the one-year olds, focus on the one-year olds becuase they are our population of interest and 2-5 year olds likely get more exposure outside of the house (not captured in this survey)
+```

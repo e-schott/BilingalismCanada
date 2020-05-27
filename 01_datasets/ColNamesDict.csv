@@ -1,0 +1,117 @@
+old_name,explanation,new_name,type
+HH_ID,Key for household table,household_id,number
+EF_ID,Key for economic family table,,number
+CF_ID,Key for census family table,,number
+PP_ID,Key for person table,person_id,number
+WEIGHT,Individuals weighting factor,,number
+WT1,Replicate PUMF weight,,number
+WT2,Replicate PUMF weight,,number
+WT3,Replicate PUMF weight,,number
+WT4,Replicate PUMF weight,,number
+WT5,Replicate PUMF weight,,number
+WT6,Replicate PUMF weight,,number
+WT7,Replicate PUMF weight,,number
+WT8,Replicate PUMF weight,,number
+WT9,Replicate PUMF weight,,number
+WT10,Replicate PUMF weight,,number
+WT11,Replicate PUMF weight,,number
+WT12,Replicate PUMF weight,,number
+WT13,Replicate PUMF weight,,number
+WT14,Replicate PUMF weight,,number
+WT15,Replicate PUMF weight,,number
+WT16,Replicate PUMF weight,,number
+ABOID,Aboriginal: Aboriginal identity – Detailed,indigenous_identity,categorical
+AGEGRP,Age,age_group,categorical
+AGEIMM,Immigration: Age at Immigration,immigration_age,categorical
+ATTSCH,Education: School attendance,,categorical
+BEDRM,Bedrooms,,categorical
+BFNMEMB,Aboriginal: Membership in a First Nation or Indian band,,categorical
+BUILT,Period of construction,,categorical
+CF_RP,Census family reference person,,categorical
+CFSTAT,"Household living arrangements of person, simple version",,categorical
+CFSTRUCT,"Census family structure, simple version",,categorical
+CIP2011,"Education: Major field of study, primary groupings (based on CIP Canada 2016)",,categorical
+CITIZEN,Citizenship: Citizenship status and type – Summary,citizen_status,categorical
+CITOTH,Citizenship: Other country of citizenship,,categorical
+CMA,Census metropolitan area or census agglomeration of current residence (2016),area,categorical
+CONDO,Condominium status,,categorical
+COW,Labour: Class of worker (derived),,categorical
+DIST,POW: Distance from home to work capped maximum of 201 kilometres,,categorical
+DTYPE,Structural type of dwelling,,categorical
+DUR,JTW: Commuting duration,,categorical
+EF_RP,Economic family reference person,,categorical
+EFDECILE,Income: National economic family after-tax income decile for all persons,income_decile,categorical
+EFDIMBM,Income: Disposable income for MBM of economic family for all persons,,number
+EMPIN,Income: Employment income,,number
+ETHDER,Ethnic origin: Derived single and multiple ethnic origins,,ethnicity
+FCOND,Condominium fees,,number
+FOL,Language: First official language spoken,,categorical
+FPTWK,Labour: Full-time or part-time weeks worked in 2015,,categorical
+GENSTAT,Generation status: Detailed,immigration_generation,categorical
+GTRFS,Income: Government transfers,,number
+HDGREE,"Education: Highest certificate, diploma or degree",education,categorical
+HHMAINP,Person responsible for household payments,,categorical
+HLAEN,Language: Home language (part A) – English component,lang_most_eng,categorical
+HLAFR,Language: Home language (part A) – French component,lang_most_fre,categorical
+HLANO,Language: Home language (part A) – First write-in component,lang_most_oth_write_in,categorical
+HLBEN,Language: Home language (part B) – English component,lang_regular_eng,categorical
+HLBFR,Language: Home language (part B) – French component,lang_regular_fre,categorical
+HLBNO,Language: Home language (part B) – First write-in component,lang_regular_oth,categorical
+HRSWRK,Labour: Hours worked for pay or in self-employment,,categorical
+IMMSTAT,Immigration: Immigrant status,immigration_status,categorical
+INCTAX,Income: Income taxes,,number
+KOL,Language: Knowledge of official languages,,categorical
+LEAVE,JTW: Time leaving for work,,categorical
+LFTAG,Labour: Labour force status,,categorical
+LOC_ST_RES,Education: Location of study compared with province or territory of residence,,categorical
+LOCSTUD,Education: Location of study,,categorical
+LOLICOA,Income: Low income status based on LICO-AT,,categorical
+LOLICOB,Income: Low income status based on LICO-BT,,categorical
+LOLIMA,Income: Low-income status based on LIM-AT,,categorical
+LOLIMB,Income: Low-income status based on LIM-BT,,categorical
+LOMBM,Income: Low-income status based on MBM,,categorical
+LSTWRK,Labour: When last worked for pay or in self-employment,,categorical
+LWAEN,Language: Language of work (part A) – English component,,categorical
+LWAFR,Language: Language of work (part A) – French component,,categorical
+LWANO,Language: Language used at work (part A) – First write-in component,,categorical
+LWBEN,Language: Language of work (part B) – English component,,categorical
+LWBFR,Language: Language of work (part B) – French component,,categorical
+LWBNO,Language: Language used at work (part B) – First write-in component,,categorical
+MarStH,Marital status (de facto),,categorical
+Mob1,Mobility 1: Mobility Status – Place of residence 1 year ago (2015),,categorical
+Mob5,Mobility 5: Mobility Status – Place of residence 5 years ago (2011),,categorical
+MODE,JTW: Main mode of commuting,,categorical
+MRKINC,Income: Market income,,number
+MTNEn,Language: Mother tongue – English component,lang_native_eng,categorical
+MTNFr,Language: Mother tongue – French component,lang_native_fre,categorical
+MTNNO,Language: Mother Tongue – First write-in component,lang_native_oth,categorical
+NAICS,Labour: Industry sectors (based on the NAICS 2012),,categorical
+NOCS,Labour: Occupation broad categories (based on the NOC 2016),,categorical
+NOL,Language: Knowledge of non-official languages – First write-in component,,categorical
+NOS,Housing suitability,,categorical
+OCC,JTW: Commuting vehicle occupancy,,categorical
+POB,Place of birth of person: Detailed,place_birth_person,categorical
+POBF,Place of birth of father: Detailed,place_birth_father,categorical
+POBM,Place of birth of mother: Detailed,place_birth_mother,categorical
+POWST,POW: Place of work status,,categorical
+PR,Province or territory of current residence (2016),province,categorical
+PR1,Mobility 1: Province or territory of residence 1 year ago (2015),,categorical
+PR5,Mobility 5: Province or territory of residence 5 years ago (2011),,categorical
+PRESMORTG,"Mortgage, presence of",,categorical
+PRIHM,Primary household maintainer,,categorical
+PWPR,POW: Place of work province,,categorical
+REGIND,Aboriginal: Registered or Treaty Indian status,,categorical
+REPAIR,Dwelling condition,,categorical
+ROOM,Rooms,,categorical
+SEX,Sex,sex,categorical
+SHELCO,Shelter cost,,categorical
+SSGRAD,Education: Secondary (high) school diploma or equivalency certificate,,categorical
+SUBSIDY,Subsidized housing,,categorical
+TENUR,Tenure,,categorical
+TOTINC,Income: Total income,,number
+TOTINC_AT,Income: After-tax income,,number
+VALUE,Value (owner estimated),,number
+VISMIN,Visible minority: Visible minority indicator,visible_minority,categorical
+WKSWRK,"Labour: weeks worked in 2015, no zero value in statistics",,categorical
+WRKACT,Labour: Work Activity in 2015,,categorical
+YRIMM,Immigration: Year of immigration,immigration_year,categorical
