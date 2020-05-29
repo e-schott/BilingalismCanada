@@ -303,6 +303,18 @@ filter(age_group=="0 to 9 years") %>%
 
 ```
 
+
+# export for analysis in other scripts
+```{r}
+
+# this contains ALL households (in case another analysis needs all data)
+export(hhdata, file = here("03_output/00_processed_data/hhdata_preprocessed.Rdata"))
+```
+
+
+
+
+
 # getting data from only adults in child's households
 ```{r}
 # filter out children
@@ -331,6 +343,12 @@ adults_biling_n <- adults_lang %>%
   group_by(household_id) %>% 
   summarize(n_biling_adults = sum(n_lang_pair))
 
+# get proportion of bilingual adults per household
+adults_n <- adults_n %>% 
+  left_join(adults_biling_n, by = "household_id") %>% 
+  mutate(n_biling_adults = replace_na(n_biling_adults, 0), 
+         prop_biling_adults = n_biling_adults / n_adults)
+
 
 
 ### education
@@ -338,31 +356,111 @@ adults_biling_n <- adults_lang %>%
 # currently 8 factor levels. want to change to 5 to match Turcotte analyses. merging post-secondary levels together
 
 hhdata_child_adult <- hhdata_child_adult %>% 
-  mutate(education_refactor = case_when(
-    education == "No certificate, diploma or degree" ~ "No diploma",
+  mutate(education_rank = case_when(
+    education == "No certificate, diploma or degree" ~ 1,
     education == "Secondary (high) school diploma or equivalency certificate" |
-     "Trades certificate or diploma other than Certificate of Appr" |
-     "Certificate of Apprenticeship or Certificate of Qualificatio" |
-     "College, CEGEP or other non-university certificate or diplom" ~ "High school diploma",
-    education ==  "University certificate or diploma below bachelor level"  ~ "Postsecondary diploma",
-    education == "Bachelor's degree" ~ "Bachelor's degree", 
-    education == "University certificate, diploma or degree above bachelor lev" ~ "Graduate degree",
-    education == "Not applicable" ~ "Not applicable",
-    education == "Not available" ~ "Not available"
+    education ==  "Trades certificate or diploma other than Certificate of Appr" |
+    education ==  "Certificate of Apprenticeship or Certificate of Qualificatio" |
+    education ==  "College, CEGEP or other non-university certificate or diplom" ~ 2,
+    education ==  "University certificate or diploma below bachelor level"  ~ 3,
+    education == "Bachelor's degree" ~ 4, 
+    education == "University certificate, diploma or degree above bachelor lev" ~ 5,
+    education == "Not applicable" ~ 0
   ))
 
-
+adults_edu <- hhdata_child_adult %>% 
+  group_by(household_id) %>% 
+  summarize(highest_ed = max(education_rank)) %>% 
+  mutate(highest_ed = as.factor(highest_ed))
 
 ```
 
 
+# create df for only children
 
-# export for analysis in other scripts
 ```{r}
-
-# this contains ALL households (in case another analysis needs all data)
-export(hhdata, file = here("03_output/00_processed_data/hhdata_preprocessed.Rdata"))
+hhdata_child_only <- hhdata_child %>% 
+  # filter for only children
+  filter(child0_9 == 1) %>% 
+  # join with # of bilingual adults
+  left_join(adults_n, by = "household_id") %>% 
+  # join with highest education
+  left_join(adults_edu, by = "household_id")
 ```
 
 
+# exploratory data viz
+
+## bilingal adults in household
+```{r}
+# number of bilingual children by number of bilingual adults in HH (HH without biling adults removed, so more detail can be seen)
+hhdata_child_only %>% 
+  filter(n_biling_adults != 0) %>% 
+ggplot(aes(x = factor(n_biling_adults), fill = N_languages_person)) +
+  geom_bar(position = "dodge")
+
+
+# proportion of bilingual children in HH with various numbers of biling adults
+ggplot(hhdata_child_only, aes(x = factor(n_biling_adults), fill = N_languages_person)) +
+  geom_bar(position = "fill") +
+  geom_abline(intercept = 0.5, slope = 0)
+
+
+
+# number of bilingual children in HH with various proportion of bilingual adults
+ggplot(hhdata_child_only, aes(x = prop_biling_adults, fill = N_languages_person)) +
+  geom_histogram(binwidth = .1)
+
+## same but filtered for no bilingual adults
+hhdata_child_only %>% 
+  filter(n_biling_adults != 0) %>% 
+  ggplot(aes(x = prop_biling_adults, fill = N_languages_person)) +
+  geom_histogram(binwidth = .1)
+
+```
+
+## province / cities
+
+```{r}
+# proportion of bilingual children by province
+ggplot(hhdata_child_only, aes(x = province, fill = N_languages_person)) +
+  geom_bar(position = "fill") +
+  theme(axis.text.x = element_text(angle = 90))
+
+
+ggplot(hhdata_child_only, aes(x = province, fill = N_languages_person)) +
+  geom_bar(position = "fill") +
+  theme(axis.text.x = element_text(angle = 90)) + 
+  facet_grid(. ~ n_biling_adults)
+
+
+
+# proportion of bilingual children in major cities
+ggplot(hhdata_child_only, aes(x = area, fill = N_languages_person)) +
+  geom_bar(position = "fill") +
+  theme(axis.text.x = element_text(angle = 90))
+
+```
+
+## parental ed
+
+```{r}
+ggplot(hhdata_child_only, aes(x = factor(highest_ed), fill = N_languages_person)) +
+  geom_bar(position = "fill") +
+  theme(axis.text.x = element_text(angle = 90))
+
+# by province
+ggplot(hhdata_child_only, aes(x = factor(province), fill = N_languages_person)) +
+  geom_bar(position = "fill") +
+  theme(axis.text.x = element_text(angle = 90))+
+  facet_grid( . ~ highest_ed)
+```
+
+## immigration status
+
+```{r}
+ggplot(hhdata_child_only, aes(x = immigration_generation, fill = N_languages_person)) +
+  geom_bar(position = "fill") 
+#+  theme(axis.text.x = element_text(angle = 90))
+```
 
