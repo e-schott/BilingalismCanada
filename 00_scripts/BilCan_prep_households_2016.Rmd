@@ -13,7 +13,7 @@ see poster created from a previous version of this script: https://osf.io/4gekn/
 ```{r}
 load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
 
-use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
+use_reduced_data_set = TRUE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
 ```
 
 ## load packages
@@ -160,7 +160,7 @@ hhdata = hhdata %>%
 # test that this is working: 
 # table(hhdata$lang_most_oth_write_in, hhdata$lang_most_oth)
 
-
+###LK: do the same for mother tongue?
 
 ```
 ### clean up Write-in component for non-official languages
@@ -302,6 +302,60 @@ filter(age_group=="0 to 9 years") %>%
 
 
 ```
+
+# getting data from only adults in child's households
+```{r}
+# filter out children
+hhdata_child_adult <- hhdata_child %>% 
+  filter(child0_9 == 0)
+  
+# see number of adults per household
+adults_n <- hhdata_child_adult %>% 
+  # group by household
+  group_by(household_id) %>% 
+  summarize(n_adults = n())
+# number of adults per household ranges 1 - 6
+
+
+
+### language
+
+# get language (pairs) and number of speakers per household
+adults_lang <- hhdata_child_adult %>% 
+  group_by(household_id, lang_pair) %>% 
+  summarize(n_lang_pair = n()) 
+
+# get number of bilingual adults per household
+adults_biling_n <- adults_lang %>% 
+  filter(str_detect(lang_pair, "&")) %>% 
+  group_by(household_id) %>% 
+  summarize(n_biling_adults = sum(n_lang_pair))
+
+
+
+### education
+
+# currently 8 factor levels. want to change to 5 to match Turcotte analyses. merging post-secondary levels together
+
+hhdata_child_adult <- hhdata_child_adult %>% 
+  mutate(education_refactor = case_when(
+    education == "No certificate, diploma or degree" ~ "No diploma",
+    education == "Secondary (high) school diploma or equivalency certificate" |
+     "Trades certificate or diploma other than Certificate of Appr" |
+     "Certificate of Apprenticeship or Certificate of Qualificatio" |
+     "College, CEGEP or other non-university certificate or diplom" ~ "High school diploma",
+    education ==  "University certificate or diploma below bachelor level"  ~ "Postsecondary diploma",
+    education == "Bachelor's degree" ~ "Bachelor's degree", 
+    education == "University certificate, diploma or degree above bachelor lev" ~ "Graduate degree",
+    education == "Not applicable" ~ "Not applicable",
+    education == "Not available" ~ "Not available"
+  ))
+
+
+
+```
+
+
 
 # export for analysis in other scripts
 ```{r}
