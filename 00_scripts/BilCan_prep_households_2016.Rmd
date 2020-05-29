@@ -51,7 +51,7 @@ if(load_data_from_raw == TRUE) {
 
 #dict = tibble(old_name = names(raw_hhdata), explanation = var_label(raw_hhdata))
 #export(dict, file = here("01_datasets/ColNamesDict.csv"))
-hh_column_names = import(here("01_datasets/ColNamesDict.csv"))
+hh_column_names = import(here("01_datasets/ColNamesDict_hhdata.csv"))
 
 
 
