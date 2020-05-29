@@ -37,141 +37,200 @@ library(codebook)
 ```{r}
 
 
-
-
 # 2016 data files
 # need to update to most recent
 if(load_data_from_raw == TRUE) {
 raw_idata = import(here("01_datasets/pumf-98M0001-E-2016-individuals_F1.sav"), 
-                      format = "sav")
+                      format = "sav", user_na = c("Not available", "88888888", "99999999"))
 saveRDS(raw_idata, here("03_output/00_processed_data/idata_raw.Rdata"))} else {
 raw_idata =   readRDS(here("03_output/00_processed_data/idata_raw.Rdata"))
 }
 
+```
 
-# convert strings to factors 
-idata <- lapply(raw_idata, 
-                    Int2Factor)
-# convert list to dataframe
-idata <- as.data.frame(idata, 
-                           stringsAsFactors = FALSE)
+### clean up column names
 
-# select which variables are necessary for our analysis
-variables.keep = c("PPSORT", # individual case ID
-  "PR","CMA", # location: province & metropolitain area
-                   "AGEGRP","PKID0_1", "PKID2_5", # number of children between 0 and 1, and 2 and 5
-                   "HLAEN","HLAFR","HLANO", # home language part A
-                   "HLBEN","HLBFR","HLBNO", #home language part B
-                    "CFInc", "DPGRSUM")
-idata_short = idata %>% select(variables.keep)
-idata_short$Child0_1 = factor(idata_short$PKID0_1, labels=c("NotAvailable","1+","0"))
-idata_short$Child2_5 = factor(idata_short$PKID2_5, labels=c("NotAvailable","1+","0"))
+```{r}
 
-# create age_bracket variable... 
-idata_short$age_bracket = ifelse(as.integer(idata_short$AGEGRP)<16, "adult","child")
+dict_idata = tibble(old_name = names(raw_idata), explanation = var_label(raw_idata))
+#export(dict_idata, file = here("01_datasets/ColNamesDict_idata.csv"))
+individ_column_names = import(here("01_datasets/ColNamesDict_idata.csv"))
 
-idata_short = idata_short %>%
-  rename(caseID = "PPSORT")
+
+# we only want to rename columns that we created a new name for
+individ_column_names_keep = individ_column_names %>%
+  filter(new_name!="")
+# rename columns to new name
+# pull() is necessary to convert column to vector (which rename_at expects)
+raw_idata = raw_idata %>% rename_at(vars(pull(individ_column_names_keep,old_name)), ~ pull(individ_column_names_keep,new_name))
+
 
 
 ```
+### convert to categorical variables to factors to see variable labels
+```{r}
+# make factor - the spss variable has all variables stored as numeric, which makes them read into R as numeric (which means it doesn't show labels present in the dataset). Can use factorize to remedy that 
+
+# from the column dictionary, keep only columns that are categorical 
+columns_to_convert_to_factor = individ_column_names %>%
+  filter(type == "categorical") %>%
+  mutate(current_name = if_else(new_name== "", old_name, new_name)) %>% # some of these columns have been renamed, use new name if it was renamed
+  pull(current_name)
+
+
+# batch convert to factor
+# this takes a bit long
+raw_idata = raw_idata %>%
+  mutate_at(.vars = vars(columns_to_convert_to_factor),
+             .funs = factorize)
+# now, instead of numbers e.g. for provice we see the actual label in the df
+```
+
+
+
+### select variables of interest
+```{r}
+# select which variables are necessary for our analysis
+# keep all that we have renamed (to include more, edit the ColNamesDict.csv in datasets folder)
+
+idata = raw_idata %>% select(sort(pull(individ_column_names_keep, new_name)))
+```
+
+
+
+
+## clean up age variables
+```{r}
+
+
+# create age_bracket variable... 
+idata$age_bracket = ifelse(as.integer(idata$age_group)>6, "adult","child") # the 6th level is "15 to 17 years"
+
+table( idata$age_group, idata$age_bracket)
+
+```
+
+
 ## use subset of full data (for troubleshooting)
 ```{r}
 if(use_reduced_data_set == TRUE) {
-  idata_short = idata_short %>%
+  idata = idata %>%
     sample_n(50000)
 }
 ```
-
-
-###  change factor levels & variable names for language variables
-this needs to be cleaned up & shortened (Esther)
+### simplify language factor levels
 ```{r}
 
+idata = idata %>%
+  mutate_at( .vars = vars(lang_most_eng, lang_most_fre, lang_regular_eng, lang_regular_fre, lang_regular_oth),
+             ~ fct_relabel(., ~str_remove(., '\\s*-.*')))
+```
 
 
-# change factor levels for question part a ("language used most often")
-idata_short$HLA_En = factor(idata_short$HLAEN, labels= c(NA,T,F))
-levels(idata_short$HLA_En) <- list(NotAvailable = NA,English = "TRUE",N="FALSE")
-levels(idata_short$HLA_En)[levels(idata_short$HLA_En)=='NotAvailable'] <- NA
+
+### clean up Write-in component for non-official languages
+```{r}
+idata = idata %>%
+  
+  mutate(lang_most_oth_write_in = case_when(
+    lang_most_oth_write_in == "No non-official language" ~ "",
+    lang_most_oth_write_in == "Not available" ~ NA_character_,
+    lang_most_oth_write_in == "All other languages" ~ "Other",
+    str_detect(lang_most_oth_write_in, "languages")  ~ sub(" languages", "", lang_most_oth_write_in),
+
+    TRUE ~  sub(" \\(.*", "", lang_most_oth_write_in)
+  ))
+
+# create a variable that functions like all other home language variables and just says true/false for lang_most_oth_write_in  
+idata = idata %>% 
+  mutate(lang_most_oth = case_when(
+    lang_most_oth_write_in == "" ~ "False",
+    lang_most_oth_write_in == "No non-official language" ~ "False",
+    lang_most_oth_write_in == "Not available" ~ NA_character_,
+    !is.na(lang_most_oth_write_in) ~ "True"
+  ))
+```
 
 
-idata_short$HLA_Fr = factor(idata_short$HLAFR, labels= c(NA,T,F))
-levels(idata_short$HLA_Fr) <- list(NotAvailable =NA, French = "TRUE",N="FALSE")
-levels(idata_short$HLA_Fr)[levels(idata_short$HLA_Fr)=='NotAvailable'] <- NA
 
+### calculate number of languages spoken (individual)
 
-idata_short$HLA_Oth = factor(idata_short$HLANO)
-levels(idata_short$HLA_Oth)[levels(idata_short$HLA_Oth)=='No non-official language'] <- "N"
-levels(idata_short$HLA_Oth)[levels(idata_short$HLA_Oth)== 'Not available'] <- NA
+```{r}
+# count how many lanuages each person speaks:
+true_false_language_columns = c("lang_most_eng", "lang_most_fre", "lang_most_oth","lang_regular_eng", "lang_regular_fre", "lang_regular_oth")
 
-levels(idata_short$HLA_Oth)[levels(idata_short$HLA_Oth)=='All other languages'] <- "Other"
+idata = idata  %>% 
+  mutate(N_languages_numeric = rowSums(.[true_false_language_columns] == "True", na.rm = TRUE)    ,
+         n_languages = # make this a categorical variable
+           case_when(N_languages_numeric == 0 ~ NA_character_,
+                     N_languages_numeric == 1 ~ "One Language",
+                     N_languages_numeric > 1 ~ "Two or more",
+                     TRUE ~ NA_character_))
 
-# change for question part b (regular use)
-idata_short$HLB_En = factor(idata_short$HLBEN, labels= c(NA, T,F))
-levels(idata_short$HLB_En) <- list(NotAvailable =NA, English = "TRUE",N="FALSE")
-levels(idata_short$HLB_En)[levels(idata_short$HLB_En)=='NotAvailable'] <- NA
-
-idata_short$HLB_Fr = factor(idata_short$HLBFR, labels= c(NA,T,F))
-levels(idata_short$HLB_Fr) <- list(NotAvailable =NA, French = "TRUE",N="FALSE")
-levels(idata_short$HLB_Fr)[levels(idata_short$HLB_Fr)=='NotAvailable'] <- NA
-
-
-idata_short$HLB_Oth = factor(idata_short$HLBNO, labels = c(T, F))
-levels(idata_short$HLB_Oth) <- list(Other = "TRUE",N="FALSE")
-#levels(idata_short$HLB_Oth)[levels(idata_short$HLB_Oth)=='N'] <- NA
+# check result:
+#View(idata %>% select( person_id, lang_most_eng:lang_regular_oth, lang_most_oth, n_languages))
 
 
 ```
 
-### convert from wide to long
-For easier counting of languages etc.
-```{r}
-old_language_cols = c("HLAEN","HLAFR", "HLANO","HLBEN",  "HLBFR", "HLBNO" )
-idata_long = idata_short %>% 
-  select(-old_language_cols) %>%
-  # cut down size of df for debugging
-  #sample_n(193000) %>%
+### create language pairs variable
 
-  gather(lang_question, answer,HLA_En:HLB_Oth) %>%
-  arrange(caseID)
+```{r}
+# we need a column that says what languages that person speaks. So English_French, English&Italian&Other etc. 
+# if a person speaks a language at home (value is "True"), then copy the column name to new column lang_pair_ordered
+
+# sorted by most spoken then regularly spoken languages (for the person)
+idata$lang_pair_ordered <- apply(idata[true_false_language_columns], 1, function(x) paste(names(x[x=="True"]), collapse="&"))
+
+
+
+# this takes a long time to run 
+# now we need to clean up the messy column names in each row:
+idata = idata %>%
+  mutate( lang_pair_ordered = str_remove(lang_pair_ordered, "(NA&)+|(&NA)+"), # remove NA in beginning and middle
+   lang_pair_ordered =str_remove(lang_pair_ordered,"&NA"), # remove NAs at End
+   lang_pair_ordered = str_replace(lang_pair_ordered, "(lang_most_eng)+|(lang_regular_eng)+", "English"), # substite English column names with word english
+   lang_pair_ordered = str_replace(lang_pair_ordered, "(lang_most_fre)+|(lang_regular_fre)+", "French"), # same for french
+   lang_pair_ordered = str_replace(lang_pair_ordered, "lang_most_oth", as.character(lang_most_oth_write_in)),
+   lang_pair_ordered = str_replace(lang_pair_ordered, "lang_regular_oth", "Other") # for lang_regular_oth we don't know language, just call it other
+   )
+
+# check result:
+#View(idata %>% select(person_id, lang_most_eng:lang_regular_oth, lang_most_oth, n_languages, lang_pair_ordered))
+
+
 
 
 ```
-
-#### create bilingualism variable (wide df)
+### create variables for each language in dataset
 ```{r}
-idata_long = idata_long %>%
- mutate(language_reported = if_else(answer =="N",0,1)) %>%
-  group_by(caseID) %>%
-  mutate(N_Lang = sum(language_reported, na.rm=T),
-         N_Two_or_more = case_when(
-                                  N_Lang == 1 ~ "1",
-                                  N_Lang >1 ~ "2+",
-                                  is.na(N_Lang) ~ NA_character_),
-        # Lang_Combo_ranked = paste(answer[language_reported==1], 
-        #                           collapse ="_"),
-        # Lang_Combo_a_z = paste(sort(answer[language_reported==1]), 
-        #                        collapse ="_"),
-         Lang_Combo_top2 = paste(sort(answer[language_reported==1][1:2]), 
-                                 collapse ="_")) 
 
-idata_long = idata_long %>% ungroup()
-# idata_long %>% filter(N_Lang>1) %>% View()
-
+idata  =  idata %>%
+  separate(lang_pair_ordered, c("lang1", "lang2", "lang3", "lang4"), remove = FALSE)
+# warning that not all people have 4 languages is normal
 ```
 
-#### get back to wide (one-case-one-row)
+
+
+### simplify language pairs variable (sorted A-Z)
 ```{r}
-idata_wide = idata_long %>% select(-lang_question, -answer, -language_reported) %>%
-  distinct()
+
+# remove order by most spoken then regularly spoken languages (now sorted by A-Z)
+idata$lang_pair <- apply(idata[c("lang1", "lang2", "lang3","lang4")], 1, function(x) paste(sort(x[!is.na(x)]), collapse="&"))
+
 ```
+## get columns back in alphabetical order
+```{r}
+idata = idata %>% select(sort(names(idata)))
+```
+
+
 
 
 
 ### create variable for geographical locations of interest
 ```{r}
-idata_long$gma.interest = ifelse(idata_long$CMA %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata_long$CMA), NA)
+idata$area_interest = ifelse(idata$area %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata$area), NA)
 ```
 
 
@@ -182,8 +241,8 @@ idata_long$gma.interest = ifelse(idata_long$CMA %in% c("Vancouver", "Montréal",
 
 ```{r}
 
-idata_child = idata_wide %>%
-  filter(AGEGRP == "0 to 4 years")
+idata_child = idata %>%
+  filter(age_group == "0 to 4 years")
 saveRDS(idata_child, file = here::here("03_output","00_processed_data", "Individuals_child_data.rdata"))
 
   
@@ -200,17 +259,17 @@ saveRDS(idata_child, file = here::here("03_output","00_processed_data", "Individ
 check how distributions over province and metropolitain areas are
 ```{r}
 # select only adults who are living with at least one child
-idata_hh_child = idata_wide %>% 
-  filter(PKID0_1 =="One or more" | PKID2_5 =="One or more") %>% 
+idata_hh_child = idata %>% 
+  filter(n_child_0_to_1 =="One or more" | n_child_2_to_5 =="One or more") %>% 
   filter(age_bracket=="adult")
 
 # how many are there per province & area?
-idata_hh_child %>% group_by(PR, CMA) %>%
+idata_hh_child %>% group_by(province, area) %>%
   summarize(N=n()) %>% 
-  spread(PR, N)
+  spread(province, N)
 
 # breakdown by province
-idata_child %>% group_by(PR) %>%
+idata_child %>% group_by(province) %>%
   summarize(N=n())
 
 # some provinces have  few data points. can probably concentrate on BC, Alberta, Ontario, Quebec
@@ -218,7 +277,7 @@ idata_child %>% group_by(PR) %>%
 
 
 # top metropolitain areas
-idata_child %>% group_by(CMA) %>%
+idata_child %>% group_by(area) %>%
    summarize(N=n()) %>%
   arrange(-N)
 # top metropolitain areas are: Toronto, Montréal, Vancouver Calgary, Ottawa - Gatineau, Edmonton (cutoff could be 5000 individuals?)
@@ -229,12 +288,12 @@ idata_child %>% group_by(CMA) %>%
 
 ```{r}
 # commented out because I need to fix langGroup
-# idata_short %>% filter(age_bracket == "child") %>%
-#   group_by(AGEGRP, N_languages_individual_cat) %>%
-#   summarize(N=n()) %>%
-#   spread(LangGroup_individual, N) %>%
-#   clean_names() %>%
-#   mutate(total = one_language+two_or_more, percent = two_or_more/total)
+ idata %>% filter(age_bracket == "child") %>%
+   group_by(age_group, n_languages) %>%
+   summarize(N=n()) %>%
+   spread(n_languages, N) %>%
+   clean_names() %>%
+   mutate(total = one_language+two_or_more, percent = two_or_more/total)
 
 
 ```
@@ -243,7 +302,7 @@ idata_child %>% group_by(CMA) %>%
 ```{r}
 # commented out because I need to fix langGroup
 
-# idata_short %>% filter(AGEGRP == "0 to 4 years"| AGEGRP =="5 to 6 years") %>%
+# idata %>% filter(AGEGRP == "0 to 4 years"| AGEGRP =="5 to 6 years") %>%
 #   group_by(gma.interest, LangGroup_individual) %>%
 #   summarize(N=n()) %>%
 #   spread(LangGroup_individual, N) %>%
@@ -289,3 +348,10 @@ idata_child %>% group_by(CMA) %>%
 
 # these look relatively the same as the one-year olds, focus on the one-year olds becuase they are our population of interest and 2-5 year olds likely get more exposure outside of the house (not captured in this survey)
 ```
+
+# save data for future analysis
+```{r}
+export(idata, file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata")) 
+
+```
+

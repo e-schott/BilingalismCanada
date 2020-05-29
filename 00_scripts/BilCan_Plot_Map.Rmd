@@ -35,11 +35,12 @@ library(fuzzyjoin)
 library(viridis)
 library(scales)
 library(ggrepel)
+library(rio)
 ```
 
 
 # load map data
-## census cma map data
+## census area map data
 ```{r}
 
 
@@ -48,7 +49,7 @@ devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
 
 if(!file.exists(here("02_map_data","census_map_2016","lcma000a16a_e.shp"))) {
 # grab the file from "Statistics Canada"
-# 2016 census, CMA areas only
+# 2016 census, area areas only
 download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lcma000a16a_e.zip", destfile=here("02_map_data/census_map_2016.zip"))
 unzip(here("02_map_data/census_map_2016.zip"))
 system("ogr2ogr canada.shp lcma000a16a_e.shp -simplify 0.01")
@@ -107,41 +108,42 @@ rm(province2016)
 # process census language data
 ## load census language data
 ```{r}
-idata_child = readRDS(file = here::here("01_datasets","02_processed_data", "Individuals_child_data.rdata"))
+idata_child = import(file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata")) %>%
+  filter(age_group %in% "0 to 4 years")
 
 ```
 
-## summarize census language data by CMA & province
+## summarize census language data by area & province
 ```{r}
-gma_LangGroup_data = idata_child %>%
-  group_by(PR,CMA,N_Two_or_more) %>%
+(gma_LangGroup_data = idata_child %>%
+  group_by(province,area,n_languages) %>%
   summarize(N=n()) %>%
-    mutate( Percent = round(N/sum(N),2))%>% 
-    filter(N_Two_or_more != "1") 
+    mutate( Percent = round(N/sum(N),2)) %>% 
+    filter(n_languages == "Two or more") )
     
 
 ```
 # table for poster
 ```{r}
 table_prov = idata_child %>%
-  group_by(PR) %>%
+  group_by(province) %>%
   mutate(total = n()) %>% 
-  group_by(PR,total,N_Two_or_more) %>%
+  group_by(province,total,n_languages) %>%
   summarize(N=n()) %>% 
     mutate( Percent = percent(N/total,1))%>% 
-    filter(N_Two_or_more != "1")  %>%
-  select(-N_Two_or_more)
+    filter(n_languages != "One Language")  %>%
+  select(-n_languages)
 
 table_city = idata_child %>%
-  group_by(PR,CMA,N_Two_or_more) %>%
+  group_by(province,area,n_languages) %>%
   summarize(N=n()) %>%
   
     mutate( Percent_city = percent(N/sum(N),1)) %>%
   ungroup() %>%
-mutate(      CMA = ifelse(CMA =="Other census metropolitan areas, census agglomerations and o","_other",as.character(CMA)))%>% 
-    filter(N_Two_or_more != "1")  %>%
-  select(-N_Two_or_more) %>%
-  arrange(CMA,-N) %>% filter(N >250 ) 
+mutate(      area = ifelse(area =="Other census metropolitan areas, census agglomerations and o","_other",as.character(area)))%>% 
+    filter(n_languages != "One Language")  %>%
+  select(-n_languages) %>%
+  arrange(area,-N) %>% filter(N >250 ) 
 
 
 ```
@@ -151,66 +153,66 @@ mutate(      CMA = ifelse(CMA =="Other census metropolitan areas, census agglome
 ## process "other" non-cma area data
 ```{r}
 
-province_data = gma_LangGroup_data %>%    filter(substr(CMA,1,5) == "Other")
+province_data = gma_LangGroup_data %>%    filter(substr(area,1,5) == "Other")
 
-province_data$PR= as.character(province_data$PR)
+province_data$province= as.character(province_data$province)
 
-northern_data = data.frame(PR= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
+northern_data = data.frame(province= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
 
 province_data  = province_data %>% full_join(northern_data) %>%
-  mutate(id = ifelse(is.na(id), as.character(PR), as.character(id)))
+  mutate(id = ifelse(is.na(id), as.character(province), as.character(id)))
 
 ```
 ## save data for poster table
 ```{r}
-table_otherCMA = province_data %>% group_by(PR) %>% slice(1) %>% ungroup() %>% select(-id, -N) %>%
+table_otherCMA = province_data %>% group_by(province) %>% slice(1) %>% ungroup() %>% select(-id, -N) %>%
   mutate(Percent = percent(Percent, 1))
 
 
 table_poster = table_prov %>% full_join(table_city %>% 
   rename( Percent = Percent_city))  %>% 
   full_join(table_otherCMA) %>%
-  select(PR, CMA,total, N, Percent) %>%
-  arrange(PR)
+  select(province, area,total, N, Percent) %>%
+  arrange(province)
 write.csv(table_poster, file=here("03_output","Table.csv"),row.names = F)
 ```
 
-## match cma data to map data
+## match area data to map data
 ```{r}
 # remove "other" areas (saved in province_data)
 gma_LangGroup_data = gma_LangGroup_data %>% 
-   filter(substr(CMA,1,5) != "Other")
+   filter(substr(area,1,5) != "Other")
 
-# try matching the census CMA names to the census map data
+# try matching the census area names to the census map data
 attempted_matching = stringdist_left_join(gma_LangGroup_data, 
                              map_areas2016 %>% 
-                               rename(CMA = id), 
-                             by ="CMA", 
+                               rename(area = id), 
+                             by ="area", 
                              distance_col = NULL)
 
 # write failures to file to match by hand
-attempted_matching %>% select(PR,CMA.x, CMA.y) %>% 
+attempted_matching %>% select(province,area.x, area.y) %>% 
   # keep only those where matching failed
-  filter(is.na(CMA.y)) %>% 
+  filter(is.na(area.y)) %>% 
   # write to file to match by hand
-  write.csv(., file=here("02_map_data/Dict-CMA.csv"), row.names=F) 
+  write.csv(., file=here("02_map_data/Dict-area.csv"), row.names=F) 
 
 # read in the matched-by-hand-codes
-dict.map  = read.csv(here("02_map_data/Dict-CMA-coded.csv"))
+dict.map  = read.csv(here("02_map_data/Dict-area-coded.csv"))
 
 # add the hand-coded labels to the dataframe
 gma_LangGroup_data = gma_LangGroup_data %>% 
   left_join(dict.map) %>% 
-  rename(CMA.old = CMA) %>% 
-  mutate(CMA = ifelse(is.na(CMA.splitUp), CMA.old, as.character(CMA.splitUp))) %>%
-  select(-CMA.old, -CMA.splitUp)
+  rename(area.old = area) %>% 
+  mutate(area = ifelse(is.na(area.splitUp), area.old, as.character(area.splitUp))) %>%
+  select(-area.old, -area.splitUp)
 
 # 
 gma_lang_for_merging = gma_LangGroup_data %>% 
-    stringdist_left_join(map_areas2016 %>% rename(CMA = id), 
-                         by = "CMA", distance_col = NULL) %>% 
-    select(-CMA.old, -CMA.x, -area) %>%
-    rename(id = CMA.y)
+    stringdist_left_join(map_areas2016 %>% rename(area = id), 
+                         by = "area", distance_col = NULL) %>% 
+    select(-area.old, -area.x, -area) %>%
+    rename(id = area.y)
 ```
 # merge census data and map data
 ## CMAs
@@ -223,37 +225,37 @@ gma_map_data = left_join(gma_lang_for_merging, canada_map_areas_2016)
 ```{r}
 province_map_data = full_join( 
                       province_data %>% 
-                        subset(CMA =="Other census metropolitan areas, census agglomerations and o") , province_map, 
-                      by=c("PR" ="id"))
+                        subset(area =="Other census metropolitan areas, census agglomerations and o") , province_map, 
+                      by=c("province" ="id"))
 
 ```
 
 ## get labels
 
 ```{r}
-gma_labels = gma_map_data %>% group_by(CMA.old) %>% summarize(
+gma_labels = gma_map_data %>% group_by(area.old) %>% summarize(
   # y
   long = mean(long), 
   # x 
   lat = mean(lat)) %>%
-  mutate(short_label = gsub(" – .*","",CMA.old),
+  mutate(short_label = gsub(" – .*","",area.old),
          short_label = gsub(" / .*","", short_label))
 
-add_labels = tibble(CMA.old = "Grand Sudbury", lat = 1250604.3, long = 7085883 )
+add_labels = tibble(area.old = "Grand Sudbury", lat = 1250604.3, long = 7085883 )
 GTA_cities = c("Brantford – Guelph – Barrie","Kitchener – Cambridge – Waterloo",  "Hamilton",  "Kingston – Peterborough", 
  "St. Catharines – Niagara", "Toronto")
-gma_labels = gma_map_data %>% group_by(CMA.old) %>% summarize(
+gma_labels = gma_map_data %>% group_by(area.old) %>% summarize(
   # y
   long = mean(long), 
   # x 
   lat = mean(lat)) %>%
   full_join(add_labels) %>%
-  mutate(short_label = gsub(" – .*","",CMA.old),
+  mutate(short_label = gsub(" – .*","",area.old),
          short_label = gsub(" / .*","", short_label))
 
 
 gma_labels_adj = gma_labels %>%
-  mutate(city = ifelse(CMA.old == "Ottawa – Gatineau", "Ottawa", CMA.old ),
+  mutate(city = ifelse(area.old == "Ottawa – Gatineau", "Ottawa", area.old ),
          lat = case_when(city == "Ottawa"~ lat+ 100000, 
                          city == "Oshawa" ~lat+ 50000,
                          TRUE ~ lat),
@@ -263,10 +265,10 @@ gma_labels_adj = gma_labels %>%
     TRUE ~ long),
     lat_adj  = ifelse(city == "Vancouver", lat - 150000, lat),
     GTA = case_when(
-      CMA.old %in% GTA_cities[1:2] ~ "GTA-south",
-      CMA.old %in% GTA_cities ~ "GTA-west",
+      area.old %in% GTA_cities[1:2] ~ "GTA-south",
+      area.old %in% GTA_cities ~ "GTA-west",
       TRUE ~NA_character_),
-    label_linebreak = gsub(" – ","\n",CMA.old)
+    label_linebreak = gsub(" – ","\n",area.old)
     )
   
 
@@ -282,7 +284,7 @@ c("Calgary", "Edmonton",
 ```
 
 
-# plot CMA and provinces together
+# plot area and provinces together
 ```{r}
 province_map_data = province_map_data %>% na.omit()
 map_plot =  ggplot() + 
@@ -293,7 +295,7 @@ map_plot =  ggplot() +
            color="white", 
         
            size=0.1)+ 
-  # draw cma areas
+  # draw area areas
 geom_map(data=gma_map_data, 
         map=canada_map_areas_2016,
        aes(map_id=id,    
