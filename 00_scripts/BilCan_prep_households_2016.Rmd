@@ -31,6 +31,8 @@ library(codebook)
 
 library(scales)
 
+library(lme4)
+
 ```
 
 
@@ -417,6 +419,26 @@ hhdata_child_only %>%
   ggplot(aes(x = prop_biling_adults, fill = N_languages_person)) +
   geom_histogram(binwidth = .1)
 
+
+
+
+## get total number of children in the database
+n_children_total <- nrow(hhdata_child_only)
+
+# percentage of bilingual children based on number of bilingual adults in their HH (O, 1, 2+)
+
+biling_by_adults <- hhdata_child_only %>% 
+  filter(N_languages_person_numeric > 1) %>% 
+  mutate(n_biling_adults_group = case_when(
+    n_biling_adults == 0 ~ "None",
+    n_biling_adults == 1 ~ "One Adult",
+    n_biling_adults > 1 ~ "Two or More Adults",
+    TRUE ~ "NA"
+  )) %>% 
+  mutate(n_biling_adults_group = as.factor(n_biling_adults_group)) %>% 
+  group_by(n_biling_adults_group) %>% 
+  summarize(n_children = n(), percent_children = n_children/n_children_total * 100)
+
 ```
 
 ## province / cities
@@ -440,6 +462,28 @@ ggplot(hhdata_child_only, aes(x = area, fill = N_languages_person)) +
   geom_bar(position = "fill") +
   theme(axis.text.x = element_text(angle = 90))
 
+
+## get total number of children in each province
+n_children_province <- hhdata_child_only %>% 
+  group_by(province) %>% 
+  summarize(n_children_province = n())
+
+# percentage of bilingual children per province based on number of bilingual adults in their HH (O, 1, 2+)
+
+biling_by_adults_province <- hhdata_child_only %>% 
+  filter(N_languages_person_numeric > 1) %>% 
+  mutate(n_biling_adults_group = case_when(
+    n_biling_adults == 0 ~ "None",
+    n_biling_adults == 1 ~ "One Adult",
+    n_biling_adults > 1 ~ "Two or More Adults",
+    TRUE ~ "NA"
+  )) %>% 
+  mutate(n_biling_adults_group = as.factor(n_biling_adults_group)) %>% 
+  group_by(n_biling_adults_group, province) %>% 
+  summarize(n_children = n()) %>% 
+  left_join(n_children_province, by = "province") %>%
+  mutate(percent_children = n_children/n_children_province * 100)
+
 ```
 
 ## parental ed
@@ -454,6 +498,35 @@ ggplot(hhdata_child_only, aes(x = factor(province), fill = N_languages_person)) 
   geom_bar(position = "fill") +
   theme(axis.text.x = element_text(angle = 90))+
   facet_grid( . ~ highest_ed)
+
+
+## get total number of children for each parental education level
+n_children_edu <- hhdata_child_only %>% 
+  group_by(highest_ed) %>% 
+  summarize(n_children_edu = n())
+
+# percentage of bilingual children based on highest education of parents
+
+biling_by_adults_edu <- hhdata_child_only %>% 
+  filter(N_languages_person_numeric > 1) %>% 
+  group_by(highest_ed) %>% 
+  summarize(n_children = n()) %>% 
+  left_join(n_children_edu, by = "highest_ed") %>%
+  mutate(percent_children = n_children/n_children_edu * 100)
+
+## get total number of children for each parental education level in each province
+n_children_edu_province <- hhdata_child_only %>% 
+  group_by(highest_ed, province) %>% 
+  summarize(n_children_edu_province = n())
+
+# percentage of bilingual children based on highest education of parents by province
+biling_by_adults_edu_province <- hhdata_child_only %>% 
+  filter(N_languages_person_numeric > 1) %>% 
+  group_by(highest_ed, province) %>% 
+  summarize(n_children = n()) %>% 
+  left_join(n_children_edu_province, by = c("highest_ed", "province")) %>%
+  mutate(percent_children = n_children/n_children_edu_province * 100)
+
 ```
 
 ## immigration status
@@ -462,5 +535,96 @@ ggplot(hhdata_child_only, aes(x = factor(province), fill = N_languages_person)) 
 ggplot(hhdata_child_only, aes(x = immigration_generation, fill = N_languages_person)) +
   geom_bar(position = "fill") 
 #+  theme(axis.text.x = element_text(angle = 90))
+
+
+ggplot(hhdata_child_only, aes(x = immigration_generation, fill = N_languages_person)) +
+  geom_bar(position = "fill") +
+  facet_grid(. ~ province)
+
+
+## get total number of children in each immigration generation
+n_children_immigration <- hhdata_child_only %>% 
+  group_by(immigration_generation) %>% 
+  summarize(n_children_immigration = n())
+
+# percentage of bilingual children per immigration generation
+
+biling_by_adults_immigration <- hhdata_child_only %>% 
+  filter(N_languages_person_numeric > 1) %>% 
+  group_by(immigration_generation) %>% 
+  summarize(n_children = n()) %>% 
+  left_join(n_children_immigration, by = "immigration_generation") %>%
+  mutate(percent_children = n_children/n_children_immigration * 100)
+
+
+## get total number of children for each immigration generation in each province
+n_children_immigration_province <- hhdata_child_only %>% 
+  group_by(immigration_generation, province) %>% 
+  summarize(n_children_immigration_province = n())
+
+# percentage of bilingual children based on highest education of parents by province
+biling_by_adults_immigration_province <- hhdata_child_only %>% 
+  filter(N_languages_person_numeric > 1) %>% 
+  group_by(immigration_generation, province) %>% 
+  summarize(n_children = n()) %>% 
+  left_join(n_children_immigration_province, by = c("immigration_generation", "province")) %>%
+  mutate(percent_children = n_children/n_children_immigration_province * 100)
+
 ```
+
+## gender
+
+```{r}
+ggplot(hhdata_child_only, aes(x = sex, fill = N_languages_person)) +
+  geom_bar(position = "fill") 
+```
+
+## income
+
+```{r}
+ggplot(hhdata_child_only, aes(x = income_decile, fill = N_languages_person)) +
+  geom_bar(position = "fill") 
+
+## get total number of children in each income decile
+n_children_income <- hhdata_child_only %>% 
+  group_by(income_decile) %>% 
+  summarize(n_children_income = n())
+
+# percentage of bilingual children per immigration generation
+
+biling_by_adults_income <- hhdata_child_only %>% 
+  filter(N_languages_person_numeric > 1) %>% 
+  group_by(income_decile) %>% 
+  summarize(n_children = n()) %>% 
+  left_join(n_children_income, by = "income_decile") %>%
+  mutate(percent_children = n_children/n_children_income * 100)
+```
+
+
+
+# model
+
+
+```{r}
+
+# add column for bilingual hit for regression models
+hhdata_child_only <-  hhdata_child_only %>% 
+  mutate(bilingual = case_when(
+    N_languages_person_numeric == 1 ~ 0,
+    N_languages_person_numeric > 1 ~ 1
+  )) %>% 
+  mutate(bilingual = as.factor(bilingual)) %>% 
+  mutate(n_biling_adults_group = case_when(
+    n_biling_adults == 0 ~ "None",
+    n_biling_adults == 1 ~ "One Adult",
+    n_biling_adults > 1 ~ "Two or More Adults",
+    TRUE ~ "NA"
+  )) 
+
+## need to decide which measure of adult bilingualism to use (N, proportion, group)
+m1 <- glm(bilingual ~ n_biling_adults + province + highest_ed + immigration_generation + income_decile, data = hhdata_child_only, family = "binomial")
+summary(m1)
+```
+
+
 
