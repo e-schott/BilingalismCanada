@@ -31,7 +31,7 @@ library(codebook)
 
 library(scales)
 
-library(lme4)
+
 
 ```
 
@@ -336,21 +336,49 @@ adults_n <- hhdata_child_adult %>%
 
 # get language (pairs) and number of speakers per household
 adults_lang <- hhdata_child_adult %>% 
-  group_by(household_id, lang_pair) %>% 
-  summarize(n_lang_pair = n()) 
+  group_by(household_id, lang_pair_ordered) %>% 
+  summarize(n_lang_pair = n())
 
 # get number of bilingual adults per household
 adults_biling_n <- adults_lang %>% 
-  filter(str_detect(lang_pair, "&")) %>% 
+  filter(str_detect(lang_pair_ordered, "&")) %>% 
   group_by(household_id) %>% 
-  summarize(n_biling_adults = sum(n_lang_pair))
+  summarize(n_biling_adults = sum(n_lang_pair)) 
 
-# get proportion of bilingual adults per household
+# get number of monolingual adults per household
+adults_monoling_n <- adults_lang %>% 
+  filter(!str_detect(lang_pair_ordered, "&")) %>% 
+  mutate(lang_pair_ordered = na_if(lang_pair_ordered, "NA")) %>% 
+  filter(!is.na(lang_pair_ordered)) %>% 
+  group_by(household_id) %>% 
+  summarize(n_monoling_adults = sum(n_lang_pair))
+
+# combine info on adults' language
 adults_n <- adults_n %>% 
   left_join(adults_biling_n, by = "household_id") %>% 
-  mutate(n_biling_adults = replace_na(n_biling_adults, 0), 
-         prop_biling_adults = n_biling_adults / n_adults)
+  left_join(adults_monoling_n, by = "household_id") %>% 
+  # add values in if we know there are no reported bilingual adults in the HH
+  mutate(n_biling_adults = case_when(
+    n_adults - n_monoling_adults == 0 ~ 0,
+    TRUE ~ as.numeric(as.character(.$n_biling_adults))
+  )) %>% 
+  mutate(n_biling_adults_group = case_when(
+           n_biling_adults == 0 ~ "None",
+           n_biling_adults == 1 ~ "One Adult",
+           n_biling_adults == 2 ~ "Two Adults",
+           n_biling_adults > 2 ~ "Three or More Adults"
+          )) %>% 
+  mutate(n_biling_adults_group = as.factor(n_biling_adults_group)) 
 
+adults_n$n_biling_adults_group <- factor(adults_n$n_biling_adults_group, levels = c("None", "One Adult", "Two Adults", "Three or More Adults"))
+
+# # get proportion of bilingual adults per household
+# adults_n <- adults_n %>% 
+#   left_join(adults_biling_n, by = "household_id") %>% 
+#   mutate(n_biling_adults = replace_na(n_biling_adults, 0), 
+#          prop_biling_adults = n_biling_adults / n_adults,
+#          
+         # create factor for groups of # of bilingual adults
 
 
 ### education
@@ -359,21 +387,23 @@ adults_n <- adults_n %>%
 
 hhdata_child_adult <- hhdata_child_adult %>% 
   mutate(education_rank = case_when(
-    education == "No certificate, diploma or degree" ~ 1,
-    education == "Secondary (high) school diploma or equivalency certificate" |
+    education == "No certificate, diploma or degree" ~ "No high school diploma",
+    education == "Secondary (high) school diploma or equivalency certificate" ~ "High school diploma",
     education ==  "Trades certificate or diploma other than Certificate of Appr" |
     education ==  "Certificate of Apprenticeship or Certificate of Qualificatio" |
-    education ==  "College, CEGEP or other non-university certificate or diplom" ~ 2,
-    education ==  "University certificate or diploma below bachelor level"  ~ 3,
-    education == "Bachelor's degree" ~ 4, 
-    education == "University certificate, diploma or degree above bachelor lev" ~ 5,
-    education == "Not applicable" ~ 0
+    education ==  "College, CEGEP or other non-university certificate or diplom" |
+    education ==  "University certificate or diploma below bachelor level"  ~ "Post-secondary diploma",
+    education == "Bachelor's degree" ~ "Bachelor's degree", 
+    education == "University certificate, diploma or degree above bachelor lev" ~ "Graduate degree"
   ))
 
 adults_edu <- hhdata_child_adult %>% 
   group_by(household_id) %>% 
   summarize(highest_ed = max(education_rank)) %>% 
   mutate(highest_ed = as.factor(highest_ed))
+
+adults_edu$highest_ed <- factor(adults_edu$highest_ed, levels = c("No high school diploma", "High school diploma", "Post-secondary diploma", "Bachelor's degree", "Graduate degree"))
+
 
 ```
 
@@ -387,7 +417,18 @@ hhdata_child_only <- hhdata_child %>%
   # join with # of bilingual adults
   left_join(adults_n, by = "household_id") %>% 
   # join with highest education
-  left_join(adults_edu, by = "household_id")
+  left_join(adults_edu, by = "household_id") %>% 
+  ### income - creating quintiles, following Turcotte analyses
+  mutate(income_quintile = case_when(
+    income_decile == "In first decile" | income_decile == "In second decile" ~ "In first quintile",
+    income_decile == "In third decile" | income_decile == "In fourth decile" ~ "In second quintile",
+    income_decile == "In fifth decile" | income_decile == "In sixth decile" ~ "In third quintile",
+    income_decile == "In seventh decile" | income_decile == "In eighth decile" ~ "In fourth quintile",
+    income_decile == "In ninth decile" | income_decile == "In tenth decile" ~ "In fifth quintile",
+  )) %>% 
+  mutate(income_quintile = as.factor(income_quintile))
+
+hhdata_child_only$income_quintile <- factor(hhdata_child_only$income_quintile, levels = c("In first quintile", "In second quintile", "In third quintile", "In fourth quintile", "In fifth quintile"))
 ```
 
 
@@ -407,6 +448,11 @@ ggplot(hhdata_child_only, aes(x = factor(n_biling_adults), fill = N_languages_pe
   geom_bar(position = "fill") +
   geom_abline(intercept = 0.5, slope = 0)
 
+# grouped number of bilingual adults
+ggplot(hhdata_child_only, aes(x = factor(n_biling_adults_group), fill = N_languages_person)) +
+  geom_bar(position = "fill") +
+  geom_abline(intercept = 0.5, slope = 0)
+
 
 
 # number of bilingual children in HH with various proportion of bilingual adults
@@ -421,23 +467,36 @@ hhdata_child_only %>%
 
 
 
-
-## get total number of children in the database
-n_children_total <- nrow(hhdata_child_only)
+## get total number of children in the database at number of bilinual adults
+n_children_adults <- hhdata_child_only %>% 
+  mutate(n_biling_adults = as.factor(n_biling_adults)) %>% 
+  group_by(n_biling_adults) %>% 
+  summarize(n_children_adults = n())
 
 # percentage of bilingual children based on number of bilingual adults in their HH (O, 1, 2+)
 
 biling_by_adults <- hhdata_child_only %>% 
   filter(N_languages_person_numeric > 1) %>% 
-  mutate(n_biling_adults_group = case_when(
-    n_biling_adults == 0 ~ "None",
-    n_biling_adults == 1 ~ "One Adult",
-    n_biling_adults > 1 ~ "Two or More Adults",
-    TRUE ~ "NA"
-  )) %>% 
-  mutate(n_biling_adults_group = as.factor(n_biling_adults_group)) %>% 
+  mutate(n_biling_adults = as.factor(n_biling_adults)) %>% 
+  group_by(n_biling_adults) %>% 
+  summarize(n_children = n()) %>% 
+  left_join(n_children_adults, by = "n_biling_adults") %>% 
+  mutate(percent_children = n_children/n_children_adults * 100)
+
+
+## get total number of children in the database at each level
+n_children_adults_group <- hhdata_child_only %>% 
   group_by(n_biling_adults_group) %>% 
-  summarize(n_children = n(), percent_children = n_children/n_children_total * 100)
+  summarize(n_children_adults_group = n())
+
+# percentage of bilingual children based on number of bilingual adults in their HH (O, 1, 2+)
+
+biling_by_adults_group <- hhdata_child_only %>% 
+  filter(N_languages_person_numeric > 1) %>% 
+  group_by(n_biling_adults_group) %>% 
+  summarize(n_children = n()) %>% 
+  left_join(n_children_adults_group, by = "n_biling_adults_group") %>% 
+  mutate(percent_children = n_children/n_children_adults_group * 100)
 
 ```
 
@@ -472,13 +531,6 @@ n_children_province <- hhdata_child_only %>%
 
 biling_by_adults_province <- hhdata_child_only %>% 
   filter(N_languages_person_numeric > 1) %>% 
-  mutate(n_biling_adults_group = case_when(
-    n_biling_adults == 0 ~ "None",
-    n_biling_adults == 1 ~ "One Adult",
-    n_biling_adults > 1 ~ "Two or More Adults",
-    TRUE ~ "NA"
-  )) %>% 
-  mutate(n_biling_adults_group = as.factor(n_biling_adults_group)) %>% 
   group_by(n_biling_adults_group, province) %>% 
   summarize(n_children = n()) %>% 
   left_join(n_children_province, by = "province") %>%
@@ -507,7 +559,7 @@ n_children_edu <- hhdata_child_only %>%
 
 # percentage of bilingual children based on highest education of parents
 
-biling_by_adults_edu <- hhdata_child_only %>% 
+biling_by_edu <- hhdata_child_only %>% 
   filter(N_languages_person_numeric > 1) %>% 
   group_by(highest_ed) %>% 
   summarize(n_children = n()) %>% 
@@ -520,7 +572,7 @@ n_children_edu_province <- hhdata_child_only %>%
   summarize(n_children_edu_province = n())
 
 # percentage of bilingual children based on highest education of parents by province
-biling_by_adults_edu_province <- hhdata_child_only %>% 
+biling_by_edu_province <- hhdata_child_only %>% 
   filter(N_languages_person_numeric > 1) %>% 
   group_by(highest_ed, province) %>% 
   summarize(n_children = n()) %>% 
@@ -549,7 +601,7 @@ n_children_immigration <- hhdata_child_only %>%
 
 # percentage of bilingual children per immigration generation
 
-biling_by_adults_immigration <- hhdata_child_only %>% 
+biling_by_immigration <- hhdata_child_only %>% 
   filter(N_languages_person_numeric > 1) %>% 
   group_by(immigration_generation) %>% 
   summarize(n_children = n()) %>% 
@@ -562,8 +614,8 @@ n_children_immigration_province <- hhdata_child_only %>%
   group_by(immigration_generation, province) %>% 
   summarize(n_children_immigration_province = n())
 
-# percentage of bilingual children based on highest education of parents by province
-biling_by_adults_immigration_province <- hhdata_child_only %>% 
+# percentage of bilingual children based on immigration generation by province
+biling_by_immigration_province <- hhdata_child_only %>% 
   filter(N_languages_person_numeric > 1) %>% 
   group_by(immigration_generation, province) %>% 
   summarize(n_children = n()) %>% 
@@ -581,9 +633,12 @@ ggplot(hhdata_child_only, aes(x = sex, fill = N_languages_person)) +
 
 ## income
 
-```{r}
+```{r} 
 ggplot(hhdata_child_only, aes(x = income_decile, fill = N_languages_person)) +
   geom_bar(position = "fill") 
+
+ggplot(hhdata_child_only, aes(x = income_quintile, fill = N_languages_person)) +
+  geom_bar(position = "fill")
 
 ## get total number of children in each income decile
 n_children_income <- hhdata_child_only %>% 
@@ -592,7 +647,7 @@ n_children_income <- hhdata_child_only %>%
 
 # percentage of bilingual children per immigration generation
 
-biling_by_adults_income <- hhdata_child_only %>% 
+biling_by_income <- hhdata_child_only %>% 
   filter(N_languages_person_numeric > 1) %>% 
   group_by(income_decile) %>% 
   summarize(n_children = n()) %>% 
@@ -601,30 +656,285 @@ biling_by_adults_income <- hhdata_child_only %>%
 ```
 
 
+##### MODELS #####
 
-# model
+# select and transform relevant variables
 
 
 ```{r}
 
-# add column for bilingual hit for regression models
-hhdata_child_only <-  hhdata_child_only %>% 
-  mutate(bilingual = case_when(
-    N_languages_person_numeric == 1 ~ 0,
-    N_languages_person_numeric > 1 ~ 1
-  )) %>% 
-  mutate(bilingual = as.factor(bilingual)) %>% 
-  mutate(n_biling_adults_group = case_when(
-    n_biling_adults == 0 ~ "None",
-    n_biling_adults == 1 ~ "One Adult",
-    n_biling_adults > 1 ~ "Two or More Adults",
-    TRUE ~ "NA"
-  )) 
+hhdata_model <- hhdata_child_only %>% 
+  select(person_id, household_id, N_languages_person, province, n_biling_adults_group, highest_ed, income_quintile, immigration_generation) %>% 
+  mutate(N_languages_person = as.factor(N_languages_person),
+         immigration_generation = na_if(immigration_generation, "Not available"),
+         immigration_generation = factor(immigration_generation),
+         child_biling = case_when(
+           N_languages_person == "One Language" ~ 0,
+           N_languages_person == "Two or more" ~ 1
+         )) 
 
-## need to decide which measure of adult bilingualism to use (N, proportion, group)
-m1 <- glm(bilingual ~ n_biling_adults + province + highest_ed + immigration_generation + income_decile, data = hhdata_child_only, family = "binomial")
-summary(m1)
+
+# # sum code variables  
+# contrasts(hhdata_model$n_biling_adults_group) <- contr.sum(4)
+# contrasts(hhdata_model$highest_ed) <- contr.sum(5)
+# contrasts(hhdata_model$income_quintile) <- contr.sum(5)
+# contrasts(hhdata_model$immigration_generation) <- contr.sum(4)
+
+# reverse difference code variables
+## allows for comparison of mean of given level to mean of previous level; level 1 as intercept
+
+## manually create contrast matrices
+contr_diff_3 <- matrix(c(-2/3, 1/3, 1/3, -1/3, -1/3, 2/3), ncol = 2)
+
+contr_diff_4  <-  matrix(c(-3/4, 1/4, 1/4, 1/4, -1/2, -1/2, 1/2, 1/2, -1/4, -1/4, -1/4, 3/4), ncol = 3)
+
+contr_diff_5 <- matrix(c(-4/5, 1/5, 1/5, 1/5, 1/5, -3/5, -3/5, 2/5, 2/5, 2/5, -2/5, -2/5, -2/5, 3/5, 3/5, -1/5, -1/5, -1/5, -1/5, 4/5), ncol = 4)
+
+contrasts(hhdata_model$n_biling_adults_group) <- contr_diff_4
+contrasts(hhdata_model$highest_ed) <- contr_diff_5
+contrasts(hhdata_model$income_quintile) <- contr_diff_5
+contrasts(hhdata_model$immigration_generation) <- contr_diff_4
+
+# filter for only quebec data
+hhdata_model_quebec <- hhdata_model %>% 
+  filter(province == "Quebec")
+
+# filter for Rest of Canada data  
+hhdata_model_roc <- hhdata_model %>% 
+  filter(province != "Quebec")
+
+
+# create exposed df - only those children with at least 1 bilingual adult, because we need to redo contrasts when "none" level is removed
+
+hhdata_model_exp <- hhdata_model %>% 
+  filter(n_biling_adults_group != "None") %>% 
+  mutate(n_biling_adults_group = factor(n_biling_adults_group))
+
+contrasts(hhdata_model_exp$n_biling_adults_group) <- contr_diff_3
+
+# filter for only quebec data
+hhdata_model_quebec_exp <- hhdata_model_exp %>% 
+  filter(province == "Quebec")
+
+# filter for Rest of Canada data  
+hhdata_model_roc_exp <- hhdata_model_exp %>% 
+  filter(province != "Quebec")
 ```
 
+## RoC model
 
+```{r}
+m_roc_all <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_roc, family = "binomial")
+
+summary(m_roc_all)
+
+
+## interpreting summaries for sum coding - coefficients are difference between level and GRAND MEAN, last level of each predictor not included in model
+
+
+# model for only those children who have at least 1 bilingual adult
+
+m_roc_exp <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_roc_exp, family = "binomial")
+
+summary(m_roc_exp)
+```
+
+## Quebec model
+
+```{r}
+m_quebec_all <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_quebec, family = "binomial")
+
+summary(m_quebec_all)
+
+
+
+# model for only those children who have at least 1 bilingual adult
+
+m_quebec_exp <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_quebec_exp, family = "binomial")
+
+summary(m_quebec_exp)
+```
+
+## Classification accuracies
+
+```{r}
+# function
+# lrAcc <- function(lrMod, responseVar, use.ranef=TRUE){
+#   if(!is.factor(model.frame(lrMod)[,responseVar])){ model.frame(lrMod)[,responseVar] <- as.factor(model.frame(lrMod)[,responseVar]) }
+#   if(use.ranef){ preds = predict(lrMod, newdata=model.frame(lrMod)) } else{ 
+#     preds = predict(lrMod, newdata=model.frame(lrMod), re.form=NA) }
+#   preds <- ((sign(preds)/2)+0.5)
+#   respVarValues <- model.frame(lrMod)[,responseVar] 
+#   if(is.numeric(respVarValues)){ y <- respVarValues } else{ 
+#     y <- (as.numeric(model.frame(lrMod)[,responseVar])-1) }
+#   acc <- sum(preds==y)/length(preds)
+#   return(acc)
+# }
+# 
+# 
+# # calculate accuracies
+# lrAcc(m_roc_all, as.factor("child_biling")) #87.51%
+# lrAcc(m_roc_exp, as.factor("child_biling")) #58.77%
+# lrAcc(m_quebec_all, as.factor("child_biling")) #89.68%
+# lrAcc(m_quebec_exp, as.factor("child_biling")) #63.26%
+
+```
+
+## predicted probabilities
+
+```{r}
+# function to convert logit space to probabilities
+logit2prob <- function(logit){
+  odds <- exp(logit)
+  prob <- odds / (1 + odds)
+  return(prob)
+}
+
+# steps for creating predictions
+## 1. create df with all possible combinations of levels of variables
+## 2. predict values for each combination
+## 3. convert predicted values from logits to probabilities
+## 4. average across levels of a single predictor
+
+
+
+## 1. create df with all possible combinations of levels of variables
+
+### for all children
+newdata_all <- with(hhdata_model, expand.grid(n_biling_adults_group = unique(n_biling_adults_group),
+                                              highest_ed = unique(highest_ed),
+                                              income_quintile = unique(income_quintile),
+                                              immigration_generation = unique(immigration_generation)))
+
+### for only bilingually exposed children
+newdata_exp <- with(hhdata_model_exp, expand.grid(n_biling_adults_group = unique(n_biling_adults_group),
+                                              highest_ed = unique(highest_ed),
+                                              income_quintile = unique(income_quintile),
+                                              immigration_generation = unique(immigration_generation)))
+
+## 2. predict values for each combination
+
+# ROC all
+newdata_all$prediction <- predict(m_roc_all, newdata=newdata_all)
+roc_all <- newdata_all
+
+# Quebec all
+newdata_all$prediction <- predict(m_quebec_all, newdata=newdata_all)
+quebec_all <- newdata_all
+
+
+# ROC exposed
+newdata_exp$prediction <- predict(m_roc_exp, newdata=newdata_exp)
+roc_exp <- newdata_exp
+
+# Quebec exposed
+newdata_exp$prediction <- predict(m_quebec_exp, newdata=newdata_exp)
+quebec_exp <- newdata_exp
+
+
+## 3. convert predicted values from logits to probabilities
+## 4. average across levels of a single predictor
+
+### function to do steps 3 and 4 
+prob_pred <- function(pred){
+  pred <- pred %>%
+    filter(!is.na(prediction)) %>% 
+    mutate(probability = logit2prob(prediction))
+  
+  adults <- pred %>% 
+    group_by(n_biling_adults_group) %>% 
+    summarize(mean_prob = mean(probability)) %>% 
+    rename(predictor = n_biling_adults_group)
+  
+  edu <- pred %>% 
+    group_by(highest_ed) %>% 
+    summarize(mean_prob = mean(probability)) %>% 
+    rename(predictor = highest_ed)
+  
+  income <- pred %>% 
+    group_by(income_quintile) %>% 
+    summarize(mean_prob = mean(probability)) %>% 
+    rename(predictor = income_quintile)
+  
+  immigration <- pred %>% 
+    group_by(immigration_generation) %>% 
+    summarize(mean_prob = mean(probability)) %>% 
+    rename(predictor = immigration_generation)
+  
+  rbind(adults, edu, income, immigration)
+}
+
+### apply function to each of the 4 models
+roc_all_prob <- prob_pred(roc_all)
+roc_exp_prob <- prob_pred(roc_exp)
+quebec_all_prob <- prob_pred(quebec_all)
+quebec_exp_prob <- prob_pred(quebec_exp)
+
+  pred <- roc_all %>%
+    filter(!is.na(prediction)) %>% 
+    mutate(probability = logit2prob(prediction))
+```
+
+## actual percentages
+
+```{r}
+# get the actual number of bilingual kids at each predictor level
+
+biling_pct <- function(hhdata_df){
+  
+  adults <- hhdata_df %>% 
+    group_by(child_biling, n_biling_adults_group) %>% 
+    summarize(n = n()) %>% 
+    pivot_wider(names_from = child_biling, values_from = n) %>% 
+    rename(predictor = n_biling_adults_group, monolingual = `0`, bilingual = `1`) %>% 
+    filter(!is.na(predictor)) %>% 
+    mutate(total_n = monolingual + bilingual,
+           biling_pct = bilingual / total_n) %>% 
+    select(predictor, biling_pct)
+  
+  edu <- hhdata_df %>% 
+    group_by(child_biling, highest_ed) %>% 
+    summarize(n = n()) %>% 
+    pivot_wider(names_from = child_biling, values_from = n) %>% 
+    rename(predictor = highest_ed, monolingual = `0`, bilingual = `1`) %>% 
+    filter(!is.na(predictor)) %>% 
+    mutate(total_n = monolingual + bilingual,
+           biling_pct = bilingual / total_n) %>% 
+    select(predictor, biling_pct)
+
+  
+  income <- hhdata_df %>% 
+    group_by(child_biling, income_quintile) %>% 
+    summarize(n = n()) %>% 
+    pivot_wider(names_from = child_biling, values_from = n) %>% 
+    rename(predictor = income_quintile, monolingual = `0`, bilingual = `1`) %>% 
+    filter(!is.na(predictor)) %>% 
+    mutate(total_n = monolingual + bilingual,
+           biling_pct = bilingual / total_n) %>% 
+    select(predictor, biling_pct)
+
+  
+  immigration <- hhdata_df %>% 
+    group_by(child_biling, immigration_generation) %>% 
+    summarize(n = n()) %>% 
+    pivot_wider(names_from = child_biling, values_from = n) %>% 
+    rename(predictor = immigration_generation, monolingual = `0`, bilingual = `1`) %>% 
+    filter(!is.na(predictor)) %>% 
+    mutate(total_n = monolingual + bilingual,
+           biling_pct = bilingual / total_n) %>% 
+    select(predictor, biling_pct)
+
+  
+  rbind(adults, edu, income, immigration)
+}
+
+roc_all_pct <- biling_pct(hhdata_model_roc)
+roc_exp_pct <- biling_pct(hhdata_model_roc_exp)
+quebec_all_pct <- biling_pct(hhdata_model_quebec)
+quebec_exp_pct <- biling_pct(hhdata_model_quebec_exp)
+
+
+
+
+```
 
