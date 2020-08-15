@@ -1,23 +1,23 @@
 Characteristic,Rest of Canada,Quebec,Rest of Canada (bilingually-exposed),Quebec (bilingually-exposed)
 Number of bilingual adults in the household,NA,NA,NA,NA
-None,0.03,0.04,NA,NA
-One Adult,0.55,0.48,0.49,0.46
-Two Adults,0.61,0.51,0.64,0.53
-Three or More Adults,0.78,0.8,0.82,0.8
+None,2.82,1.8,NA,NA
+One Adult,44.18,42.3,44.18,42.3
+Two Adults,63.37,62.82,63.37,62.82
+Three or More Adults,64.14,61.11,64.14,61.11
 Highest level of parental education,NA,NA,NA,NA
-No high school diploma,0.46,0.55,0.64,0.68
-High school diploma,0.45,0.53,0.59,0.76
-Post-secondary diploma,0.49,0.41,0.64,0.52
-Bachelor's degree,0.49,0.39,0.63,0.49
-Graduate degree,0.58,0.42,0.73,0.54
+No high school diploma,17.74,14.19,56.45,57.45
+High school diploma,13.05,17.57,53.86,55.49
+Post-secondary diploma,11.66,13.43,54.95,52.08
+Bachelor's degree,18.1,20.68,55.62,59.57
+Graduate degree,27.91,24.4,61.94,59.47
 Income quintile,NA,NA,NA,NA
-In first quintile,0.53,0.53,0.74,0.72
-In second quintile,0.48,0.58,0.62,0.76
-In third quintile,0.48,0.6,0.63,0.75
-In fourth quintile,0.53,0.59,0.69,0.75
-In fifth quintile,0.43,0,0.56,0
+In first quintile,22.61,21.79,65.89,53.41
+In second quintile,18.56,19.47,56.15,60.03
+In third quintile,16.74,14.99,55.05,54.73
+In fourth quintile,14.62,15.16,53.58,53.05
+In fifth quintile,14.8,14.53,53.06,49.56
 Immigration generation,NA,NA,NA,NA
-"First generation, respondent born outside Canada",0.54,0.53,0.6,0.63
-"Second generation, respondent born in Canada, both parents b",0.54,0.5,0.66,0.62
-"Second generation, respondent born in Canada, one parent bor",0.43,0.41,0.58,0.56
-"Third generation or more, respondent born in Canada, both pa",0.46,0.39,0.74,0.57
+"First generation, respondent born outside Canada",47.73,47.59,74.07,72
+"Second generation, respondent born in Canada, both parents b",45.01,44.72,62.07,59.65
+"Second generation, respondent born in Canada, one parent bor",16.92,33.74,44.23,61.1
+"Third generation or more, respondent born in Canada, both pa",6.1,8.19,49.07,47.99

@@ -13,7 +13,7 @@ see poster created from a previous version of this script: https://osf.io/4gekn/
 ```{r}
 load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
 
-use_reduced_data_set = TRUE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
+use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
 ```
 
 ## load packages
@@ -30,7 +30,6 @@ library(codebook)
 
 
 library(scales)
-
 
 
 ```
@@ -321,7 +320,8 @@ export(hhdata, file = here("03_output/00_processed_data/hhdata_preprocessed.Rdat
 ```{r}
 # filter out children
 hhdata_child_adult <- hhdata_child %>% 
-  filter(child0_9 == 0)
+  filter(child0_9 == 0) %>% 
+  filter(age_group != "10 to 14 years" & age_group != "15 to 19 years")
   
 # see number of adults per household
 adults_n <- hhdata_child_adult %>% 
@@ -397,12 +397,14 @@ hhdata_child_adult <- hhdata_child_adult %>%
     education == "University certificate, diploma or degree above bachelor lev" ~ "Graduate degree"
   ))
 
+  # make an ordered factor
+hhdata_child_adult$education_rank  <-  factor(hhdata_child_adult$education_rank, levels = c("No high school diploma", "High school diploma", "Post-secondary diploma", "Bachelor's degree", "Graduate degree"), ordered = TRUE)
+
 adults_edu <- hhdata_child_adult %>% 
   group_by(household_id) %>% 
   summarize(highest_ed = max(education_rank)) %>% 
   mutate(highest_ed = as.factor(highest_ed))
 
-adults_edu$highest_ed <- factor(adults_edu$highest_ed, levels = c("No high school diploma", "High school diploma", "Post-secondary diploma", "Bachelor's degree", "Graduate degree"))
 
 
 ```
@@ -453,6 +455,13 @@ ggplot(hhdata_child_only, aes(x = factor(n_biling_adults_group), fill = N_langua
   geom_bar(position = "fill") +
   geom_abline(intercept = 0.5, slope = 0)
 
+## for only Quebec
+hhdata_child_only %>% 
+  filter(province == "Quebec") %>% 
+  ggplot(aes(x = factor(n_biling_adults_group), fill = N_languages_person)) +
+    geom_bar(position = "fill") +
+    geom_abline(intercept = 0.5, slope = 0)
+
 
 
 # number of bilingual children in HH with various proportion of bilingual adults
@@ -497,6 +506,8 @@ biling_by_adults_group <- hhdata_child_only %>%
   summarize(n_children = n()) %>% 
   left_join(n_children_adults_group, by = "n_biling_adults_group") %>% 
   mutate(percent_children = n_children/n_children_adults_group * 100)
+
+
 
 ```
 
@@ -656,6 +667,9 @@ biling_by_income <- hhdata_child_only %>%
 ```
 
 
+
+
+
 ##### MODELS #####
 
 # select and transform relevant variables
@@ -755,17 +769,26 @@ m_quebec_exp <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_q
 summary(m_quebec_exp)
 ```
 
-## Classification accuracies
+## Model Criticism
+
+# load additonal packages
+```{r}
+library(arm)
+library(boot)
+
+library(mice)
+```
+
 
 ```{r}
-# function
+# # function
 # lrAcc <- function(lrMod, responseVar, use.ranef=TRUE){
 #   if(!is.factor(model.frame(lrMod)[,responseVar])){ model.frame(lrMod)[,responseVar] <- as.factor(model.frame(lrMod)[,responseVar]) }
-#   if(use.ranef){ preds = predict(lrMod, newdata=model.frame(lrMod)) } else{ 
+#   if(use.ranef){ preds = predict(lrMod, newdata=model.frame(lrMod)) } else{
 #     preds = predict(lrMod, newdata=model.frame(lrMod), re.form=NA) }
 #   preds <- ((sign(preds)/2)+0.5)
-#   respVarValues <- model.frame(lrMod)[,responseVar] 
-#   if(is.numeric(respVarValues)){ y <- respVarValues } else{ 
+#   respVarValues <- model.frame(lrMod)[,responseVar]
+#   if(is.numeric(respVarValues)){ y <- respVarValues } else{
 #     y <- (as.numeric(model.frame(lrMod)[,responseVar])-1) }
 #   acc <- sum(preds==y)/length(preds)
 #   return(acc)
@@ -773,10 +796,51 @@ summary(m_quebec_exp)
 # 
 # 
 # # calculate accuracies
-# lrAcc(m_roc_all, as.factor("child_biling")) #87.51%
+# lrAcc(m_roc_all, 'child_biling') #87.51%
 # lrAcc(m_roc_exp, as.factor("child_biling")) #58.77%
 # lrAcc(m_quebec_all, as.factor("child_biling")) #89.68%
 # lrAcc(m_quebec_exp, as.factor("child_biling")) #63.26%
+
+# residual plots
+
+binnedplot(predict(m_roc_all), resid(m_roc_all))
+binnedplot(predict(m_roc_exp), resid(m_roc_exp))
+binnedplot(predict(m_quebec_all), resid(m_quebec_all))
+binnedplot(predict(m_quebec_exp), resid(m_quebec_exp))
+
+# cook's distance
+
+#ROC
+roc_cooks <- hhdata_model_roc %>% 
+  filter(!is.na(n_biling_adults_group) & !is.na(highest_ed) & !is.na(income_quintile) & !is.na(immigration_generation) & !is.na(child_biling)) %>% 
+  mutate(cooksDistance=glm.diag(m_roc_all)$cook)
+
+ggplot(aes(x=cooksDistance), data=roc_cooks) + 
+  geom_histogram()
+
+#ROC exp
+roc_exp_cooks <- hhdata_model_roc_exp %>% 
+  filter(!is.na(n_biling_adults_group) & !is.na(highest_ed) & !is.na(income_quintile) & !is.na(immigration_generation) & !is.na(child_biling)) %>% 
+  mutate(cooksDistance=glm.diag(m_roc_exp)$cook)
+
+ggplot(aes(x=cooksDistance), data=roc_exp_cooks) + 
+  geom_histogram()
+
+#Quebec
+quebec_cooks <- hhdata_model_quebec %>% 
+  filter(!is.na(n_biling_adults_group) & !is.na(highest_ed) & !is.na(income_quintile) & !is.na(immigration_generation) & !is.na(child_biling)) %>% 
+  mutate(cooksDistance=glm.diag(m_quebec_all)$cook)
+
+ggplot(aes(x=cooksDistance), data=quebec_cooks) + 
+  geom_histogram()
+
+#Quebec exp
+quebec_exp_cooks <- hhdata_model_quebec_exp %>% 
+  filter(!is.na(n_biling_adults_group) & !is.na(highest_ed) & !is.na(income_quintile) & !is.na(immigration_generation) & !is.na(child_biling)) %>% 
+  mutate(cooksDistance=glm.diag(m_quebec_exp)$cook)
+
+ggplot(aes(x=cooksDistance), data=quebec_exp_cooks) + 
+  geom_histogram()
 
 ```
 
@@ -888,7 +952,7 @@ biling_pct <- function(hhdata_df){
     filter(!is.na(predictor)) %>% 
     mutate(total_n = monolingual + bilingual,
            biling_pct = bilingual / total_n * 100) %>% 
-    select(predictor, biling_pct)
+    dplyr::select(predictor, biling_pct)
   
   edu <- hhdata_df %>% 
     group_by(child_biling, highest_ed) %>% 
@@ -898,7 +962,7 @@ biling_pct <- function(hhdata_df){
     filter(!is.na(predictor)) %>% 
     mutate(total_n = monolingual + bilingual,
            biling_pct = bilingual / total_n * 100) %>% 
-    select(predictor, biling_pct)
+    dplyr::select(predictor, biling_pct)
 
   
   income <- hhdata_df %>% 
@@ -909,7 +973,7 @@ biling_pct <- function(hhdata_df){
     filter(!is.na(predictor)) %>% 
     mutate(total_n = monolingual + bilingual,
            biling_pct = bilingual / total_n * 100) %>% 
-    select(predictor, biling_pct)
+    dplyr::select(predictor, biling_pct)
 
   
   immigration <- hhdata_df %>% 
@@ -920,7 +984,7 @@ biling_pct <- function(hhdata_df){
     filter(!is.na(predictor)) %>% 
     mutate(total_n = monolingual + bilingual,
            biling_pct = bilingual / total_n * 100) %>% 
-    select(predictor, biling_pct)
+    dplyr::select(predictor, biling_pct)
 
   
   rbind(adults, edu, income, immigration) 
@@ -931,7 +995,6 @@ roc_all_pct <- biling_pct(hhdata_model_roc)
 roc_exp_pct <- biling_pct(hhdata_model_roc_exp)
 quebec_all_pct <- biling_pct(hhdata_model_quebec)
 quebec_exp_pct <- biling_pct(hhdata_model_quebec_exp)
-
 
 
 
@@ -987,5 +1050,58 @@ table_prob <- roc_all_table %>%
   rename(Characteristic = predictor)
 
 write_csv(table_prob, here("03_output/Table-Probabilities.csv"))
+```
+
+##### missing data investigation
+
+```{r}
+
+
+missing <-md.pattern(hhdata_model)
+missing_roc <- md.pattern(hhdata_model_roc)
+missing_roc_exp <- md.pattern(hhdata_model_roc_exp)
+missing_quebec <- md.pattern(hhdata_model_quebec)
+missing_quebec_exp <- md.pattern(hhdata_model_quebec_exp)
+```
+We loose data from children missing at least one predictor (19 QA, 23 QE, 34 RA, 42 RE). After those with full data, only missing income is largest group in each model. First gen children and highest ed as high school have higher rates of not reporting income
+
+```{r}
+ggplot(hhdata_model, aes(x = immigration_generation, fill = income_quintile)) +
+  geom_bar(position = "fill")
+
+ggplot(hhdata_model, aes(x = highest_ed, fill = income_quintile)) +
+  geom_bar(position = "fill")
+
+ggplot(hhdata_model, aes(x = n_biling_adults_group, fill = income_quintile)) +
+  geom_bar(position = "fill")
+
+hhdata_missing <- hhdata_model %>% 
+  mutate(location = case_when(
+    province == "Quebec" ~ "Quebec",
+    TRUE ~ "RoC"),
+    exposed = case_when(
+      n_biling_adults_group == "None" ~ "no",
+      is.na(n_biling_adults_group) ~ "NA",
+      TRUE ~ "yes"
+  )) %>% 
+  filter(n_biling_adults_group != "NA")
+
+ggplot(hhdata_missing, aes(x = 1, fill = income_quintile)) +
+  geom_bar(position = "fill")+
+  facet_grid(exposed ~ location)
+
+ggplot(hhdata_missing, aes(x = 1, fill = highest_ed)) +
+  geom_bar(position = "fill")+
+  facet_grid(exposed ~ location)
+
+ggplot(hhdata_missing, aes(x = 1, fill = immigration_generation)) +
+  geom_bar(position = "fill")+
+  facet_grid(exposed ~ location)
+
+hhdata_missing %>% 
+  filter(location == "RoC" & exposed == "yes") %>% 
+  ggplot(aes(x = 1, fill = income_quintile)) +
+  geom_bar(position = "fill") +
+  facet_grid(immigration_generation ~ n_biling_adults_group)
 ```
 
