@@ -1,0 +1,128 @@
+---
+title: "Bilingualism in Canada: Geographic Distribution Tables"
+author: Esther Schott (esther.schott@mail.concordia.ca)
+output: html_document
+---
+output: 
+  html_document: 
+    code_folding: show
+    collapsed: no
+    df_print: kable
+    highlight: espresso
+    number_sections: yes
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\\\
+# load libraries
+```{r load packages}
+#install.packages("gpclib", type="source")
+
+library(tidyverse)
+library(rgeos)
+library(rgdal)
+library(maptools)
+library(sp)
+library(here)
+library(fuzzyjoin)
+library(viridis)
+library(scales)
+library(ggrepel)
+library(rio)
+```
+
+
+
+
+
+# process census language data
+## load census language data
+```{r read_census_data}
+idata_child = import(file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata")) %>%
+  filter(age_group %in% "0 to 4 years")
+
+```
+
+## summarize census language data by area & province
+```{r summarize_census_data}
+(gma_LangGroup_data = idata_child %>%
+  group_by(province,area,n_languages) %>%
+  summarize(N=n()) %>%
+    mutate( Percent = round(N/sum(N),2)) %>% 
+    filter(n_languages == "Two or more") )
+    
+
+```
+# table for poster
+```{r}
+table_prov = idata_child %>%
+  group_by(province) %>%
+  mutate(total = n()) %>% 
+  group_by(province,total,n_languages) %>%
+  summarize(N=n()) %>% 
+    mutate( Percent = scales::percent(N/total,1))%>% 
+    filter(n_languages != "One Language")  %>%
+  select(-n_languages)
+
+table_city = idata_child %>%
+  group_by(province,area,n_languages) %>%
+  summarize(N=n()) %>%
+  
+    mutate( Percent_city = scales::percent(N/sum(N),1)) %>%
+  ungroup() %>%
+mutate(      area = ifelse(area =="Other","_other",as.character(area)))%>% 
+    filter(n_languages != "One Language")  %>%
+  select(-n_languages) %>%
+  arrange(area,-N) %>% filter(N >250 ) 
+
+
+```
+
+
+
+## process "other" non-cma area data
+```{r}
+
+province_data = gma_LangGroup_data %>%    filter(substr(area,1,5) == "Other")
+
+province_data$province= as.character(province_data$province)
+
+northern_data = data.frame(province= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
+
+province_data  = province_data %>% full_join(northern_data) %>%
+  mutate(id = ifelse(is.na(id), as.character(province), as.character(id)))
+
+```
+## save percentages for maps
+```{r}
+export(province_data, here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
+export(gma_LangGroup_data, here("03_output", "00_processed_data", "idata_geo_area.Rdata"))
+
+```
+
+
+
+## save data for poster table
+```{r}
+table_otherCMA = province_data %>% group_by(province) %>% slice(1) %>% ungroup() %>% select(-id, -N) %>%
+  mutate(Percent = scales::percent(Percent, 1))
+
+
+table_poster = table_prov %>% full_join(table_city %>% 
+  rename( Percent = Percent_city))  %>% 
+  full_join(table_otherCMA) %>%
+  select(province, area,total, N, Percent) %>%
+  arrange(province)
+write.csv(table_poster, file=here("03_output","02_tables","Table_idata_by_area.csv"),row.names = F)
+```
+
+
+
+
