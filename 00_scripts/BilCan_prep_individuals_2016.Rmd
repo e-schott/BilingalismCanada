@@ -13,7 +13,7 @@ see poster created from this script: https://osf.io/4gekn/
 ```{r}
 load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
 
-use_reduced_data_set = TRUE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
+use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
 ```
 
 ## load packages
@@ -118,6 +118,8 @@ if(use_reduced_data_set == TRUE) {
     sample_n(50000)
 }
 ```
+# cleanup language variables
+
 ### simplify language factor levels
 ```{r}
 
@@ -160,11 +162,11 @@ idata = idata %>%
 true_false_language_columns = c("lang_most_eng", "lang_most_fre", "lang_most_oth","lang_regular_eng", "lang_regular_fre", "lang_regular_oth")
 
 idata = idata  %>% 
-  mutate(N_languages_numeric = rowSums(.[true_false_language_columns] == "True", na.rm = TRUE)    ,
+  mutate(n_languages_numeric = rowSums(.[true_false_language_columns] == "True", na.rm = TRUE)    ,
          n_languages = # make this a categorical variable
-           case_when(N_languages_numeric == 0 ~ NA_character_,
-                     N_languages_numeric == 1 ~ "One Language",
-                     N_languages_numeric > 1 ~ "Two or more",
+           case_when(n_languages_numeric == 0 ~ NA_character_,
+                     n_languages_numeric == 1 ~ "One Language",
+                     n_languages_numeric > 1 ~ "Two or more",
                      TRUE ~ NA_character_))
 
 # check result:
@@ -230,6 +232,9 @@ idata = idata %>% select(sort(names(idata)))
 
 ### create variable for geographical locations of interest
 ```{r}
+
+idata$area = fct_recode(idata$area, Other = "Other census metropolitan areas, census agglomerations and o", `Greater Sudbury - Thunder Bay` = "Greater Sudbury / Grand Sudbury – Thunder Bay")
+
 idata$area_interest = ifelse(idata$area %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata$area), NA)
 ```
 

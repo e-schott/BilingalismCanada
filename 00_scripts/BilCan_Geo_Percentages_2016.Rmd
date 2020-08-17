@@ -56,7 +56,8 @@ idata_child = import(file = here::here("03_output","00_processed_data", "idata_p
   group_by(province,area,n_languages) %>%
   summarize(N=n()) %>%
     mutate( Percent = round(N/sum(N),2)) %>% 
-    filter(n_languages == "Two or more") )
+    filter(n_languages == "Two or more") ) %>%
+  ungroup
     
 
 ```
@@ -103,7 +104,9 @@ province_data  = province_data %>% full_join(northern_data) %>%
 ## save percentages for maps
 ```{r}
 export(province_data, here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
-export(gma_LangGroup_data, here("03_output", "00_processed_data", "idata_geo_area.Rdata"))
+gma_LangGroup_data %>% 
+  filter(area != "Other") %>%
+export(., here("03_output", "00_processed_data", "idata_geo_area.Rdata"))
 
 ```
 

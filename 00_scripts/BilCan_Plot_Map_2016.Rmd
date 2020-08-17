@@ -39,50 +39,68 @@ library(rio)
 ```
 
 
+
+
+
+
 # load map data
-## census area map data
-```{r load_maps}
-
-
+## load map theme
+```{r}
 # decent, uncluttered map theme (needs devtools package tho)
 devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
+
+```
+
+
+## census CMA map data
+CMA = census metropolitain area. can be a city (e.g., Montreal) or a combination of two cities that are ~200 km or so apart (if both cities are small.)
+
+the map files are downloaded from the census website too. If you have any questions to what the files contain, there is an explanation pdf with the download. 
+```{r load_cma_maps}
+
+
 
 if(!file.exists(here("02_map_data","census_map_2016","lcma000a16a_e.shp"))) {
 # grab the file from "Statistics Canada"
 # 2016 census, area areas only
-download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lcma000a16a_e.zip", destfile=here("02_map_data/census_map_2016.zip"))
-unzip(here("02_map_data/census_map_2016.zip"))
-system("ogr2ogr canada.shp lcma000a16a_e.shp -simplify 0.01")
+# see the pdf in map_data/census_map_2016 for more info
+download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lcma000b16a_e.zip", destfile=here("02_map_data/census_map_2016.zip"))
+unzip(zipfile = here("02_map_data/census_map_2016.zip"), exdir =  here("02_map_data/census_map_2016"))
+# this currently does not work, but if it did it would simplify the map to make code run faster
+system("ogr2ogr canada.shp lcma000b16a_e.shp -simplify 0.01")
 }
-canada2016 <- readOGR(here("02_map_data","census_map_2016","lcma000a16a_e.shp"),"lcma000a16a_e")
+
+# what layers do we have? you can use this to check
+#   ogrListLayers(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))
+# but there are none, so the shapefile is the layer
+
+canada_census_2016_cma <- readOGR(dsn = here("02_map_data","census_map_2016",
+                            "lcma000b16a_e.shp"),
+                      layer = "lcma000b16a_e",
+                      use_iconv = TRUE, 
+                      encoding = "UTF-8")
 
 
 
 
 
-# do this to see what's available from an "identifier" standpoint
-# "CDNAME" seems to be the census district name
-# "PRNAME" seems to be the province name
-# str(canada@data)
 
-
-
-
-map_areas2016 <- data.frame(id=canada2016@data$CMANAME,
-                        area=sapply(slot(canada2016, "polygons"), slot, "area") ) %>%
-  rename(area_maps = "id", area_code = "area")
-cma_map2016 <- fortify(canada2016, region="CMANAME")%>% 
+# this throws error message, this seems useful to fix this in future: https://stackoverflow.com/questions/46003060/error-using-region-argument-when-fortifying-shapefile
+cma_coordinates <- fortify(canada_census_2016_cma, region="CMANAME")%>% 
   rename(area_maps = "id")
 
-rm(canada2016)
-canada_map_areas_2016 <- merge(cma_map2016, map_areas2016, by="area_maps")
+rm(canada_census_2016_cma)
+cma_coordinates <- cma_coordinates %>%
+  #merge(cma_coordinates, map_areas2016, by="area_maps") %>%
+  rename(id = area_maps) %>%
+  relocate(long, lat, before = id)
 
 
-
+cma_census_labels = cma_coordinates %>% distinct(id)
 
 ```
 ## read census province map
-```{r read_maps}
+```{r read_province_maps}
 if(!file.exists(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))) {
 download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000b16a_e.zip", destfile=here("02_map_data/lpr_000a16a_e.zip"))
 #download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000a16a_e.zip",
@@ -92,6 +110,7 @@ unzip(here("02_map_data/lpr_000a16a_e.zip"), exdir = here("02_map_data","provinc
 
 
 # this simplifies the polygons so they load/plot faster
+# does not currently work
 system("ogr2ogr  lpr_000b16a_e.shp -simplify 0.01")
 }
 
@@ -99,175 +118,157 @@ system("ogr2ogr  lpr_000b16a_e.shp -simplify 0.01")
 #   ogrListLayers(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))
 # but there are none, so the shapefile is the layer
 
-province2016 <- readOGR(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"),"lpr_000b16a_e")
-province_map <- fortify(province2016, region="PRENAME")
-rm(province2016)
+province_census_2016 <- readOGR(here::here("02_map_data",
+                             "province_map_2016",
+                             "lpr_000b16a_e.shp"),
+                        layer = "lpr_000b16a_e",
+                        use_iconv = TRUE, encoding = "UTF-8")
+# this takes forever!
+province_coordinates <- fortify(province_census_2016, 
+                        region="PRNAME")
+# remove to ease load on memory 
+rm(province_census_2016)
+
 
 
 
 ```
+## prepare province map ids for matching
+```{r}
+province_coordinates = province_coordinates  %>%
+  separate(col = id, into = c("id", "province_fr"), remove = T, sep = " \\/ ")
+
+province_census_labels = province_coordinates %>% distinct(id)
 
 
-# process census language data
-## load census language data
+# need to check here that province labels match
+
+```
+
+# load census language data
 ```{r read_census_data}
-idata_child = import(file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata")) %>%
-  filter(age_group %in% "0 to 4 years")
+province_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
+cma_biling_data = import(here("03_output", "00_processed_data", "idata_geo_area.Rdata"))
 
 ```
 
-## summarize census language data by area & province
-```{r summarize_census_data}
-(gma_LangGroup_data = idata_child %>%
-  group_by(province,area,n_languages) %>%
-  summarize(N=n()) %>%
-    mutate( Percent = round(N/sum(N),2)) %>% 
-    filter(n_languages == "Two or more") )
-    
 
-```
-# table for poster
+
+
+# Match  census language data & map data
+
+## prepare matching census data to cma map data
 ```{r}
-table_prov = idata_child %>%
-  group_by(province) %>%
-  mutate(total = n()) %>% 
-  group_by(province,total,n_languages) %>%
-  summarize(N=n()) %>% 
-    mutate( Percent = scales::percent(N/total,1))%>% 
-    filter(n_languages != "One Language")  %>%
-  select(-n_languages)
-
-table_city = idata_child %>%
-  group_by(province,area,n_languages) %>%
-  summarize(N=n()) %>%
-  
-    mutate( Percent_city = scales::percent(N/sum(N),1)) %>%
-  ungroup() %>%
-mutate(      area = ifelse(area =="Other","_other",as.character(area)))%>% 
-    filter(n_languages != "One Language")  %>%
-  select(-n_languages) %>%
-  arrange(area,-N) %>% filter(N >250 ) 
-
-
-```
-
-
-
-## process "other" non-cma area data
-```{r}
-
-province_data = gma_LangGroup_data %>%    filter(substr(area,1,5) == "Other")
-
-province_data$province= as.character(province_data$province)
-
-northern_data = data.frame(province= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
-
-province_data  = province_data %>% full_join(northern_data) %>%
-  mutate(id = ifelse(is.na(id), as.character(province), as.character(id)))
-
-```
-## save data for poster table
-```{r}
-table_otherCMA = province_data %>% group_by(province) %>% slice(1) %>% ungroup() %>% select(-id, -N) %>%
-  mutate(Percent = scales::percent(Percent, 1))
-
-
-table_poster = table_prov %>% full_join(table_city %>% 
-  rename( Percent = Percent_city))  %>% 
-  full_join(table_otherCMA) %>%
-  select(province, area,total, N, Percent) %>%
-  arrange(province)
-write.csv(table_poster, file=here("03_output","Table_updated.csv"),row.names = F)
-```
-
-## match area data to map data
-```{r}
-# remove "other" areas (saved in province_data)
-gma_LangGroup_data = gma_LangGroup_data %>% 
-   filter(substr(area,1,5) != "Other")
-
-# try matching the census area names to the census map data
-attempted_matching = stringdist_left_join(gma_LangGroup_data, 
-                             map_areas2016 , 
-                             by =c("area" = "area_maps"), 
+# try matching the census area names to the census map data (in the small dataframe that contains only one row per cma, for efficiency)
+attempted_matching = stringdist_left_join(cma_biling_data, 
+                             cma_census_labels , 
+                             by =c("area" = "id"), 
                              distance_col = NULL)
 
-# write failures to file to match by hand
-attempted_matching %>% select(province,area_maps, area) %>% 
+#
+# 
+
+```
+## adjust labels for non-matching CMAs
+
+```{r}
+# fix the ones where multiple cities are combined into one CMA (except for Ottawa-Gatineau, which can be treated as single city but split across two provinces)
+dict_map = attempted_matching %>% 
+  select(province, area, id) %>% 
   # keep only those where matching failed
-  filter(is.na(area_maps)) %>% 
-  # write to file to match by hand
-  write_csv(., here("02_map_data/Dict-area.csv")) 
+  filter(is.na(id) & area != "Ottawa – Gatineau") %>%
+  separate(col = area, into = c("area1", "area2"), 
+           remove = F, sep =c(" [:punct:] ")) %>% 
+  pivot_longer(cols = area1:area2,names_to = NULL, values_to = "area_split_up") %>%
+  select(-id)
+ 
 
-# read in the matched-by-hand-codes
-dict.map  = read_csv(here("02_map_data/Dict-CMA-coded.csv"))
-
-# add the hand-coded labels to the dataframe
-gma_LangGroup_data = gma_LangGroup_data %>% 
-  left_join(dict.map) %>% 
+# add the split up cities to the dataframe
+cma_biling_data = cma_biling_data %>% 
+  left_join(dict_map) %>% 
   rename(area_long_name = area) %>% 
-  mutate(area = ifelse(is.na(area_split_up), area_long_name, as.character(area_split_up))) %>%
+  mutate(area = ifelse(is.na(area_split_up), 
+                       as.character(area_long_name),
+                       as.character(area_split_up))) %>% 
   select(-area_long_name, -area_split_up)
 
-# 
-gma_lang_for_merging = gma_LangGroup_data %>% 
-    stringdist_left_join(map_areas2016 ,
-                          by =c("area" = "area_maps"), 
-                          distance_col = NULL) #%>% 
-  
 ```
-# merge census data and map data
+
+## merge census data and map data
 ## CMAs
 ```{r}
-gma_map_data = left_join(gma_lang_for_merging, canada_map_areas_2016)
+# these we need to fix by hand  
+
+cma_biling_data =cma_biling_data %>%
+  mutate(area_for_merging = case_when(
+    province == "Quebec" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (partie du QuÃ©bec / Quebec part)",
+    province == "Ontario" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (Ontario part / partie de l'Ontario)	",
+    area == "Greater Sudbury" ~ "Greater Sudbury / Grand Sudbury",
+    area == "Abbotsford" ~ "Abbotsford - Mission",
+    TRUE ~ area
+  ))
+# try matching again, to see if anything else fails?
+cma_biling_data = cma_biling_data %>% 
+    stringdist_left_join(cma_census_labels ,
+                          by =c("area_for_merging" = "id"), 
+                          distance_col = NULL) 
+
+failed_merging = cma_biling_data %>% 
+  select(province, area, id) %>% 
+  # keep only those where matching failed
+  filter(is.na(id) | area == "Ottawa") 
+
+# if there are any rows in failed_merging, stop and check again which ones failed & fix them
+stopifnot(nrow(failed_merging)==0 )
+
+
 
 ```
 
-## province data
+
+
+## get label dataframe 
 ```{r}
-province_map_data = full_join( 
-                      province_data %>% 
-                        subset(area =="Other") , province_map, 
-                      by=c("province" ="id"))
+# create a df with locations of labels (by default, at the mean latitude and longitude for the city/cma)
 
-```
+cma_labels = cma_coordinates %>% 
+  # keep only cities we have bilingual data on
+  filter(id %in% unique(cma_biling_data$id)) %>%
 
-## get labels
-
-```{r}
-gma_labels = gma_map_data %>% 
- # rename(area_long_name = area) %>% 
-  group_by(area_long_name) %>% summarize(
+  group_by(id) %>% 
+  summarize(
   # y
   long = mean(long), 
   # x 
-  lat = mean(lat)) %>%
-  mutate(short_label = gsub(" – .*","",area_long_name),
-         short_label = gsub(" / .*","", short_label))
+  lat = mean(lat)) 
+```
 
-add_labels = tibble(area_long_name = "Grand Sudbury", lat = 1250604.3, long = 7085883 )
-GTA_cities = c("Brantford – Guelph – Barrie","Kitchener – Cambridge – Waterloo",  "Hamilton",  "Kingston – Peterborough", 
+
+
+# Adjust label names, position
+This is where it would make more sense to just write the cma_labels df to a csv, edit the position of the labels & read them in, but I was in a rush and doing a hack job.
+```{r}
+
+
+
+#add_labels = tibble(area_long_name = "Grand Sudbury", lat = 1250604.3, long = 7085883 )
+GTA_cities = c("Brantford","Kitchener – Cambridge – Waterloo",  "Hamilton",  "Peterborough", 
  "St. Catharines – Niagara", "Toronto")
-gma_labels = gma_map_data %>% group_by(area_long_name) %>% summarize(
-  # y
-  long = mean(long), 
-  # x 
-  lat = mean(lat)) %>%
-  full_join(add_labels) %>%
-  mutate(short_label = gsub(" – .*","",area_long_name),
-         short_label = gsub(" / .*","", short_label))
 
 
-gma_labels_adj = gma_labels %>%
+
+cma_labels_adj = cma_labels %>%
+  # create an new variable, so we can make a short area variable if needed (don't want the super long labels)
+  rename(area_long_name = id) %>% 
+  # clean up city label (short labels)
   mutate(city = ifelse(area_long_name == "Ottawa – Gatineau", "Ottawa", area_long_name ),
-         lat = case_when(city == "Ottawa"~ lat+ 100000, 
-                         city == "Oshawa" ~lat+ 50000,
-                         TRUE ~ lat),
-         
-    long_adj = case_when(
+         # adjust the position of Toronto, Edmonton, Calgary, Ottawa
+       long_adj = case_when(
     city %in% c("Toronto", "Edmonton","Calgary", "Ottawa")~ long + 100000,
     TRUE ~ long),
+    # move label for vancouver a bit around for optimum position
     lat_adj  = ifelse(city == "Vancouver", lat - 150000, lat),
+    # create GTA variable so we can adjust the labels separately
     GTA = case_when(
       area_long_name %in% GTA_cities[1:2] ~ "GTA-south",
       area_long_name %in% GTA_cities ~ "GTA-west",
@@ -276,129 +277,170 @@ gma_labels_adj = gma_labels %>%
     )
   
 
-# choose which labels to plot
-good_labels = 
-c("Calgary", "Edmonton",  
-"Halifax",  "Kelowna – Abbotsford", "Kingston – Peterborough", 
-"Kitchener – Cambridge – Waterloo", "London", "Moncton – Saint John", 
-"Montréal", "Ottawa – Gatineau", "Québec", "Regina – Saskatoon", 
-  "Toronto", 
-"Vancouver", "Victoria", "Windsor", "Winnipeg")
-
 ```
 
-
-# plot area and provinces together
+# Plot Maps
+## default Canada map without labels
 ```{r}
-province_map_data = province_map_data %>% na.omit()
+plot_language = "English"
+
+legend_label = if_else(plot_language ==  "English",
+                       "Rate of \nchild \nbilingualism",
+                       "Pourcentage des \nenfants \nbilingues")
+
+
+
 map_plot =  ggplot() + 
   # draw province map
-  geom_map(data=province_data , 
-           map=province_map,
-           aes(map_id=id, fill = Percent),
+  geom_map(data = province_data , 
+           map = province_coordinates,
+           aes(map_id = id, 
+               fill = Percent),
            color="white", 
-        
            size=0.1)+ 
-  # draw areas overlaid
-geom_map(data=gma_map_data, 
-       map=canada_map_areas_2016,
-     aes(map_id=area_maps,    
-       group=group, 
-     fill=Percent),
-    color="white", 
-  size=0.05)+ 
-  # English label
-   scale_fill_viridis(option = "D", labels = scales::percent_format(accuracy=1), 
-                      name="Rate of \nchild \nbilingualism", breaks = seq(0.0,0.25, by = .05))+
-  #French label (comment out if not wanted)
- # scale_fill_viridis(option = "D", labels = scales::percent_format(accuracy=1), 
-  #                    name="Pourcentage des \nenfants \nbilingues", breaks = seq(0.0,0.25, by = .05))+
-  # define limits for the plot (since province_map and canada_map_areas uses same scale, can use either one...)
-   expand_limits(x = province_map$long, 
-                 y = province_map$lat) + theme_map(base_size = 15)+ coord_fixed(ratio=1)+ 
-   theme(legend.position = c(0.71, 0.53))
+  # draw metropolitain areas overlaid
+geom_map(data = cma_biling_data , 
+         map = cma_coordinates,
+         aes(map_id = id,
+           #  group = group, 
+            fill = Percent),
+         color = "white", 
+         size = 0.05)+ 
+     scale_fill_viridis(option = "D", 
+                      labels = scales::percent_format(accuracy=1), 
+                      name=legend_label, 
+                      breaks = seq(0.0,0.25, by = .05))+
+
+  # define limits for the plot (since province_coordinates and canada_map_areas uses same scale, can use either one...)
+  expand_limits(x = province_coordinates$long, 
+                 y = province_coordinates$lat) + 
+  theme_map(base_size = 15) + 
+  coord_fixed(ratio=1) + 
+  theme(legend.position = c(0.71, 0.53))
  
- map_plot_with_label = map_plot +   geom_label_repel( aes(long, lat,label = city, group=NULL),
-              size=4,
-           data = gma_labels_adj) 
- ggsave(here::here("03_output","01_figures","canada_map.png"), width = 10, height =7)
+ 
+map_plot
+
+ggsave(here::here("03_output","01_figures","canada_map.png"), 
+        width = 10, 
+        height =7)
+```
+### label placement
+
+#### with geom_label_repel
+```{r}
+map_plot_with_label = map_plot +   
+   geom_label_repel(aes(long, lat,label = city, group = NULL),
+                    size=4,
+                    data = cma_labels_adj)
+map_plot_with_label
 ```
 
-# try a petter way to plot labels
+#### using the repel package
 ```{r}
 
-map_plot + 
-  # Montreal, Ottawa,Toronto
-geom_text_repel(data          = subset(gma_labels_adj, long > 5000000),
+map_repel_label_plot = map_plot + 
+  # Eastern Ontario + Quebec labels show to the right
+geom_text_repel(data = subset(cma_labels_adj, long > 6000000),
                     aes(x= long, y= lat, label = city, group=NULL),
-   nudge_x       = 9195936-  subset(gma_labels_adj, long > 5000000)$long,
+   nudge_x       = 9195936-  subset(cma_labels_adj, long > 6000000)$long,
     segment.size  = 1,
     segment.color = "grey50",
     direction     = "both",
     vjust         = 1
-  ) +
-  geom_text_repel(data          = subset(gma_labels_adj, long < 5000000),
+  ) + 
+  # West coast labels show up below the plot
+  geom_text_repel(data = subset(cma_labels_adj, long < 6000000),
                     aes(x= long, y= lat, label = city, group=NULL),
-    nudge_y       = 950425 - subset(gma_labels_adj, long < 5000000)$lat,
+    nudge_y       = 950425 - subset(cma_labels_adj, long < 6000000)$lat,
     segment.size  = 1,
     segment.color = "grey50",
     direction     = "both",
     vjust         = 1
   ) 
-
+map_repel_label_plot
  ggsave(here::here("03_output","01_figures","canada_map_diff_labels.png"), width = 13, height =7)
 
 
 
 ```
-##zoom in on ontario + Quebec
-```{r fig.height = 7, fig.width = 10}
 
+#### labels for west coast cities only 
+This was for the poster, where we zoomed in on the east coast cities
+```{r}
+western_canada_labels = c( "Calgary", "Edmonton",  "Halifax",     "Regina", 
+  "Vancouver", "Victoria", 
+"Winnipeg")
+
+map_plot + 
+  # Montreal, Ottawa,Toronto
+geom_label_repel(data          = subset(cma_labels, id %in% western_canada_labels ),
+                    aes(x= long, y= lat, label = id), size =2 ,
+                 alpha = 0.75 , seed=1234)
+  
+ ggsave(here::here("03_output","01_figures","canada_map_transparent_labels.png"), width = 9, height =7)
+
+```
+
+## plot Montreal+Toronto map
+```{r fig.height = 7, fig.width = 10}
+# these are approximate coordinates that I adjusted to the window size I wanted by trial & error - nothing special about these numbers..
 zoom_plot_x_min = 6971050-10000
 zoom_plot_x_max = 7757551+500000
 zoom_plot_y_min = 720614.5-10000
 zoom_plot_y_max = 1439061.2+200000
 
-
-gma_labels_adj = gma_labels_adj %>%
+# create a new variable that indicates whether each label is in the zoom area or not (without this, plot would print labels not in zoom area)
+cma_labels_adj = cma_labels_adj %>%
   mutate(zoom_area = if_else(between(long,
-                                                zoom_plot_x_min,
-                                                zoom_plot_x_max)&
-                                            between(lat, zoom_plot_y_min,
-                                                    zoom_plot_y_max),
-                             "zoom", NA_character_))
+                                     zoom_plot_x_min,
+                                     zoom_plot_x_max) &
+                             between(lat, 
+                                     zoom_plot_y_min,
+                                     zoom_plot_y_max),
+                            TRUE, FALSE))
 
-
+# calculate the best ratio for the plot by looking at actual ratio of coordinates
 ratio = (zoom_plot_x_max- zoom_plot_x_min ) /(zoom_plot_y_max-zoom_plot_y_min)
+# set the height we want for the plot
 height =7
 
 
-map_plot + coord_cartesian(xlim=c(zoom_plot_x_min,zoom_plot_x_max),
-                           ylim = c(zoom_plot_y_min,zoom_plot_y_max))+
-  
+map_plot + 
+  # limit plot area to coordinates we've set
+  coord_cartesian(xlim=c(zoom_plot_x_min,zoom_plot_x_max),
+                ylim = c(zoom_plot_y_min,zoom_plot_y_max))+
+  # add labels for cities outside of the Greater Toronto Area (those are easy)
   geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
               
-           data = gma_labels_adj %>% filter(zoom_area == "zoom" & 
+           data = cma_labels_adj %>% filter(zoom_area == TRUE & 
                                               is.na(GTA)), 
            alpha=.75,
-           size=5, 
-           segment.colour = "grey50", segment.size = 1.5)+
-  
-  geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
-              
-           data = gma_labels_adj %>% filter(zoom_area == "zoom" & 
-                                              GTA =="GTA-south"), 
-           alpha=.75,ylim= c(817632.7,NA), xlim=c(NA,7026050),
            size=4, 
-           segment.colour = "grey50", segment.size = 1.5 #, nudge_x = 50000,nudge_y =-20000
-           )   +
+           segment.colour = "grey50", 
+           segment.size = 1.5)+
+  # add labels for southern GTA areas (those are constrained to be further north & east)
   geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
               
-           data = gma_labels_adj %>% filter(zoom_area == "zoom" & 
-                                              GTA =="GTA-west"), 
-           alpha=.75,xlim= c(7300000-20000,NA),
-           size=5, 
-           segment.colour = "grey50", segment.size = 1.5 #, nudge_x = 50000,nudge_y =-20000
+           data = cma_labels_adj %>% 
+             filter(GTA =="GTA-south"), 
+           alpha=.75,
+           ylim= c(817632.7,NA), 
+           xlim=c(NA,7026050),
+           size=4, 
+           segment.colour = "grey50", 
+           segment.size = 1.5 #, nudge_x = 50000,nudge_y =-20000
+           )   +
+  # add labels for western GTA (these are constrained to be further to the east)
+  geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
+              
+           data = cma_labels_adj %>% 
+             filter( GTA =="GTA-west"), 
+           alpha=.75,
+           xlim= c(1158190.0,NA),
+           size=4, 
+           segment.colour = "grey50", 
+           segment.size = 1.5 #, nudge_x = 50000,nudge_y =-20000
            )   +
   guides(fill = "none")
 
@@ -409,53 +451,9 @@ map_plot + coord_cartesian(xlim=c(zoom_plot_x_min,zoom_plot_x_max),
 ```
 
 
-# child bilingualism map
-```{r}
-cutoff= 7041271
-
-essential_gma_labels = gma_labels %>% filter(short_label %in% c("Calgary", "Edmonton", "Halifax", "Regina", "Vancouver", 
-"Victoria", "Winnipeg",
-                                                              "Montréal", # comment out for poster map
-                                                              "Toronto")) # comment out for poster map
-map_plot + 
-  # Montreal, Ottawa,Toronto
-geom_label_repel(data          = subset(essential_gma_labels,  long > cutoff),
-                    aes(x= long, y= lat, label = short_label, group=NULL),
-   nudge_x       = 9195936-  subset(essential_gma_labels, long > cutoff)$long,
-    segment.size  = 1,
-    segment.color = "grey50",
-    direction     = "both",
-    vjust         = 1
-  ) +
-  geom_label_repel(data          = subset(essential_gma_labels, long < cutoff),
-                    aes(x= long, y= lat, label = short_label, group=NULL),
-    nudge_y       = 950425 - subset(essential_gma_labels, long < cutoff)$lat,
-    segment.size  = 1,
-    segment.color = "grey50",
-    direction     = "both",
-    vjust         = 1
-  ) 
-
- ggsave(here::here("03_output","01_figures","canada_map_most_labels_en.png"), width = 13, height =7)
-
-```
 
 
-# best canada map
-```{r}
-good_labels = c( "Calgary", "Edmonton",  "Halifax", "Kelowna",   
- "Regina", 
-  "Vancouver", "Victoria", 
-"Winnipeg")
 
-map_plot + 
-  # Montreal, Ottawa,Toronto
-geom_label_repel(data          = subset(gma_labels, short_label %in% good_labels ),
-                    aes(x= long, y= lat, label = short_label), size =2 ,
-                 alpha = 0.75 , seed=1234)
-  
- ggsave(here::here("03_output","01_figures","canada_map_transparent_labels.png"), width = 9, height =7)
 
-```
 
 

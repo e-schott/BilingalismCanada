@@ -20,8 +20,8 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-\\\
-# load libraries
+# preparation
+## load libraries
 ```{r load packages}
 #install.packages("gpclib", type="source")
 
@@ -39,8 +39,8 @@ library(rio)
 ```
 
 
-# load map data
-## census area map data
+## load map data
+### census area map data
 ```{r load_maps}
 
 
@@ -81,7 +81,7 @@ canada_map_areas_2016 <- merge(cma_map2016, map_areas2016, by="area_maps")
 
 
 ```
-## read census province map
+### read census province map
 ```{r read_maps}
 if(!file.exists(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))) {
 download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000b16a_e.zip", destfile=here("02_map_data/lpr_000a16a_e.zip"))
@@ -301,9 +301,9 @@ map_plot =  ggplot() +
            size=0.1)+ 
   # draw areas overlaid
 geom_map(data=gma_map_data, 
-       map=canada_map_areas_2016,
+       map=canada_map_areas_2016 %>% rename(id = "area_maps"),
      aes(map_id=area_maps,    
-       group=group, 
+       group=area_maps, 
      fill=Percent),
     color="white", 
   size=0.05)+ 
