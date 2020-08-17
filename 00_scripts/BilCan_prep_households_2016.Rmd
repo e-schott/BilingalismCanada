@@ -946,7 +946,7 @@ biling_pct <- function(hhdata_df){
   
   adults <- hhdata_df %>% 
     group_by(child_biling, n_biling_adults_group) %>% 
-    summarize(n = n()) %>% 
+    summarize(n = n()) %>% View()
     pivot_wider(names_from = child_biling, values_from = n) %>% 
     rename(predictor = n_biling_adults_group, monolingual = `0`, bilingual = `1`) %>% 
     filter(!is.na(predictor)) %>% 
