@@ -20,10 +20,10 @@ use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (
 ```{r echo=FALSE}
 library(here)
 library(tidyverse)
-library(rio) 
+library(rio) # for more powerful import & export of data
 library(labelled)
-library(janitor)
-library(codebook)
+library(janitor) # cleaning up variable names
+library(codebook) # better documentation
 
 ```
 
@@ -34,7 +34,7 @@ library(codebook)
 
 ###  read in invididuals file
 if this is the first time you use this script on a computer, download the dataset from the odesi database. https://lib-ezproxy.concordia.ca/login?url=https://odesi.ca/ 
-Search 2016 Census on odesi, click on the save icon and then download the .saV FILE. Might work better on chrome than firefox. (look out for the "if the download does not start, click here" link that might appear.)
+Search 2016 Census on odesi, click on the save icon and then download the .sav FILE. Might work better on chrome than firefox. (look out for the "if the download does not start, click here" link that might appear.)
 ```{r}
 
 
