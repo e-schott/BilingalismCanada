@@ -11,7 +11,7 @@ see poster created from this script: https://osf.io/4gekn/
 # 1. Preparation Steps
 ## Script settings
 ```{r}
-load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
+load_data_from_raw = TRUE # If true, loads data from .sav, else loads R file (faster)
 
 use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
 ```
@@ -33,7 +33,8 @@ library(codebook)
 # INDIVIDUALS dataset
 
 ###  read in invididuals file
-
+if this is the first time you use this script on a computer, download the dataset from the odesi database. https://lib-ezproxy.concordia.ca/login?url=https://odesi.ca/ 
+Search 2016 Census on odesi, click on the save icon and then download the .saV FILE. Might work better on chrome than firefox. (look out for the "if the download does not start, click here" link that might appear.)
 ```{r}
 
 
@@ -242,12 +243,13 @@ idata$area_interest = ifelse(idata$area %in% c("Vancouver", "Montréal", "Toront
  
 
 ## keep only children 0-4, save idata_child for creating map
-
+is this still used?? need to check 
+previously this only saved data from 0-4, may need changes in  other scripts
 
 ```{r}
 
 idata_child = idata %>%
-  filter(age_group == "0 to 4 years")
+  filter(age_group %in% c("0 to 4 years", "5 to 6 years", "7 to 9 years"))
 saveRDS(idata_child, file = here::here("03_output","00_processed_data", "Individuals_child_data.rdata"))
 
   
@@ -292,7 +294,6 @@ idata_child %>% group_by(area) %>%
 #### summary table: bilingual children across canada
 
 ```{r}
-# commented out because I need to fix langGroup
  idata %>% filter(age_bracket == "child") %>%
    group_by(age_group, n_languages) %>%
    summarize(N=n()) %>%
