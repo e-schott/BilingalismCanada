@@ -45,9 +45,109 @@ library(rio)
 # process census language data
 ## load census language data
 ```{r read_census_data}
-idata_child = import(file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata")) %>%
-  filter(age_group %in% "0 to 4 years")
+idata_child = import(file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata")) 
+```
 
+# look only at children 0-4
+## summarize census language data by area & province
+```{r summarize_census_data}
+(gma_LangGroup_data = idata_child %>%
+   filter(age_group == "0 to 4 years") %>%
+  group_by(province,area,n_languages) %>%
+  summarize(N=n()) %>%
+    mutate( Percent = round(N/sum(N),2)) %>% 
+    filter(n_languages == "Two or more") ) %>%
+  ungroup
+    
+
+```
+## table for poster
+```{r}
+table_prov = idata_child %>%
+  filter(age_group == "0 to 4 years") %>%
+  group_by(province) %>%
+  mutate(total = n()) %>% 
+  group_by(province,total,n_languages) %>%
+  summarize(N=n()) %>% 
+    mutate( Percent = N/total)%>% 
+    filter(n_languages != "One Language")  %>%
+  select(-n_languages) %>%
+  rename(N_bilingual = N) %>%
+  mutate(area = "")
+
+total_across_canada = table_prov %>%
+  mutate(country = "canada") %>%
+  group_by(country) %>%
+
+  summarize(total= sum(total),
+            N_bilingual = sum(N_bilingual)) %>%
+  mutate(Percent = N_bilingual/total) %>%
+  select(-country)
+
+table_city = idata_child %>%
+  filter(age_group == "0 to 4 years") %>%
+  group_by(province, area) %>%
+  mutate(total = n()) %>% 
+  group_by(province,total, area,n_languages) %>%
+  summarize(N=n()) %>% 
+  mutate( Percent = N/total) %>%
+  ungroup() %>% 
+  mutate(area = ifelse(area =="Other","zz_other",as.character(area)))%>% # so that other sorts at the end always
+  filter(n_languages != "One Language")  %>% 
+  rename(N_bilingual = N) %>%
+  select(province, area, total, N_bilingual, Percent) %>%
+  arrange(province,area, -N_bilingual) %>%
+  filter(!province %in% c("Newfoundland and Labrador", "Prince Edward Island", "Northern Canada"))
+
+combined_table_0_to_4 = full_join( table_city, table_prov) %>%
+  full_join(total_across_canada) %>%
+  arrange(province, area) %>%
+  mutate(Percent = scales::percent(Percent,1))
+```
+
+
+
+## process "other" non-cma area data
+```{r}
+
+# province_data = gma_LangGroup_data %>%    filter(substr(area,1,5) == "Other")
+# 
+# province_data$province= as.character(province_data$province)
+# 
+# northern_data = data.frame(province= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
+# 
+# province_data  = province_data %>% full_join(northern_data) %>%
+#   mutate(id = ifelse(is.na(id), as.character(province), as.character(id)))
+
+```
+## save percentages for maps
+```{r}
+export(province_data, here("03_output", "00_processed_data", "idata_geo_province_0_to_4.Rdata"))
+gma_LangGroup_data %>% 
+  filter(area != "Other") %>%
+export(., here("03_output", "00_processed_data", "idata_geo_area_0_to_4.Rdata"))
+
+```
+
+
+
+## save data for poster table
+```{r}
+table_otherCMA = province_data %>% group_by(province) %>% slice(1) %>% ungroup() %>% select(-id, -N) %>%
+  mutate(Percent = scales::percent(Percent, 1))
+
+
+table_poster = table_prov %>% full_join(table_city %>% 
+  rename( Percent = Percent_city))  %>% 
+  full_join(table_otherCMA) %>%
+  select(province, area,total, N, Percent) %>%
+  arrange(province)
+write.csv(table_poster, file=here("03_output","02_tables","Table_idata_by_area_0_to_4.csv"),row.names = F)
+```
+
+# look  at children 0-9
+```{r}
+table(idata_child$age_group)
 ```
 
 ## summarize census language data by area & province
@@ -61,7 +161,7 @@ idata_child = import(file = here::here("03_output","00_processed_data", "idata_p
     
 
 ```
-# table for poster
+## table for poster
 ```{r}
 table_prov = idata_child %>%
   group_by(province) %>%
@@ -103,10 +203,10 @@ province_data  = province_data %>% full_join(northern_data) %>%
 ```
 ## save percentages for maps
 ```{r}
-export(province_data, here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
+export(province_data, here("03_output", "00_processed_data", "idata_geo_province_0_to_9.Rdata"))
 gma_LangGroup_data %>% 
   filter(area != "Other") %>%
-export(., here("03_output", "00_processed_data", "idata_geo_area.Rdata"))
+export(., here("03_output", "00_processed_data", "idata_geo_area_0_to_9.Rdata"))
 
 ```
 
@@ -123,8 +223,11 @@ table_poster = table_prov %>% full_join(table_city %>%
   full_join(table_otherCMA) %>%
   select(province, area,total, N, Percent) %>%
   arrange(province)
-write.csv(table_poster, file=here("03_output","02_tables","Table_idata_by_area.csv"),row.names = F)
+write.csv(table_poster, file=here("03_output","02_tables","Table_idata_by_area_0_to_9.csv"),row.names = F)
 ```
+
+
+
 
 
 
