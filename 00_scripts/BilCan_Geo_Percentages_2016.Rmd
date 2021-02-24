@@ -45,14 +45,16 @@ library(rio)
 # process census language data
 ## load census language data
 ```{r read_census_data}
-idata_child = import(file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata")) 
+idata_child = import(file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata"))
+
+child_0_4_data = idata_child %>%  filter(age_group == "0 to 4 years") 
+
 ```
 
 # look only at children 0-4
 ## summarize census language data by area & province
 ```{r summarize_census_data}
-(gma_LangGroup_data = idata_child %>%
-   filter(age_group == "0 to 4 years") %>%
+(gma_LangGroup_data = child_0_4_data %>%
   group_by(province,area,n_languages) %>%
   summarize(N=n()) %>%
     mutate( Percent = round(N/sum(N),2)) %>% 
@@ -63,8 +65,7 @@ idata_child = import(file = here::here("03_output","00_processed_data", "idata_p
 ```
 ## table for poster
 ```{r}
-table_prov = idata_child %>%
-  filter(age_group == "0 to 4 years") %>%
+table_prov_0_4 = child_0_4_data %>%
   group_by(province) %>%
   mutate(total = n()) %>% 
   group_by(province,total,n_languages) %>%
@@ -75,7 +76,7 @@ table_prov = idata_child %>%
   rename(N_bilingual = N) %>%
   mutate(area = "")
 
-total_across_canada = table_prov %>%
+total_across_canada = table_prov_0_4 %>%
   mutate(country = "canada") %>%
   group_by(country) %>%
 
@@ -84,8 +85,7 @@ total_across_canada = table_prov %>%
   mutate(Percent = N_bilingual/total) %>%
   select(-country)
 
-table_city = idata_child %>%
-  filter(age_group == "0 to 4 years") %>%
+table_city_0_4 = child_0_4_data %>%
   group_by(province, area) %>%
   mutate(total = n()) %>% 
   group_by(province,total, area,n_languages) %>%
@@ -99,7 +99,7 @@ table_city = idata_child %>%
   arrange(province,area, -N_bilingual) %>%
   filter(!province %in% c("Newfoundland and Labrador", "Prince Edward Island", "Northern Canada"))
 
-combined_table_0_to_4 = full_join( table_city, table_prov) %>%
+combined_table_0_to_4 = full_join( table_city_0_4, table_prov_0_4) %>%
   full_join(total_across_canada) %>%
   arrange(province, area) %>%
   mutate(Percent = scales::percent(Percent,1))
@@ -142,13 +142,13 @@ xx need to figure out which of this stuff is still necessary!
 # look  at children 0-9
 ```{r}
 table(idata_child$age_group)
-gma_LangGroup_data = idata_child %>%
+child_0_9_data = idata_child %>%
   filter(age_group %in% c("0 to 4 years", "5 to 6 years", "7 to 9 years"))
 ```
 
 ## summarize census language data by area & province
-```{r summarize_census_data}
-(gma_LangGroup_data = gma_LangGroup_data %>%
+```{r summarize_census_data_0_9 }
+(gma_LangGroup_data = child_0_9_data %>%
   group_by(province,area,n_languages) %>%
   summarize(N=n()) %>%
     mutate( Percent = round(N/sum(N),3)) %>% 
@@ -159,7 +159,7 @@ gma_LangGroup_data = idata_child %>%
 ```
 ## table for poster
 ```{r}
-table_prov = idata_child %>%
+table_prov_0_9 = idata_child %>%
   group_by(province) %>%
   mutate(total = n()) %>% 
   group_by(province,total,n_languages) %>%
@@ -168,11 +168,11 @@ table_prov = idata_child %>%
     filter(n_languages != "One Language")  %>%
   select(-n_languages)
 
-table_city = idata_child %>%
+table_city_0_9 = idata_child %>%
   group_by(province,area,n_languages) %>%
   summarize(N=n()) %>%
   
-    mutate( Percent_city = scales::percent(N/sum(N),1)) %>%
+    mutate( Percent_city = round(N/sum(N),3)) %>%
   ungroup() %>%
 mutate(      area = ifelse(area =="Other","_other",as.character(area)))%>% 
     filter(n_languages != "One Language")  %>%
@@ -187,7 +187,7 @@ mutate(      area = ifelse(area =="Other","_other",as.character(area)))%>%
 ## process "other" non-cma area data
 ```{r}
 
-province_data = gma_LangGroup_data %>%    filter(substr(area,1,5) == "Other")
+province_data_0_9 = gma_LangGroup_data %>%    filter(substr(area,1,5) == "Other")
 
 province_data$province= as.character(province_data$province)
 
@@ -199,7 +199,7 @@ province_data  = province_data %>% full_join(northern_data) %>%
 ```
 ## save percentages for maps
 ```{r}
-export(province_data, here("03_output", "00_processed_data", "idata_geo_province_0_to_9.Rdata"))
+export(province_data_0_9, here("03_output", "00_processed_data", "idata_geo_province_0_to_9.Rdata"))
 gma_LangGroup_data %>% 
   filter(area != "Other") %>%
 export(., here("03_output", "00_processed_data", "idata_geo_area_0_to_9.Rdata"))
@@ -210,20 +210,41 @@ export(., here("03_output", "00_processed_data", "idata_geo_area_0_to_9.Rdata"))
 
 ## save data for poster table
 ```{r}
-table_otherCMA = province_data %>% group_by(province) %>% slice(1) %>% ungroup() %>% select(-id, -N) %>%
-  mutate(Percent = scales::percent(Percent, 1))
+table_otherCMA_0_9 = province_data_0_9 %>% group_by(province) %>% slice(1) %>% ungroup() %>% select( -N) 
 
 
-table_poster = table_prov %>% full_join(table_city %>% 
+table_poster = table_prov_0_9 %>% full_join(table_city_0_9 %>% 
   rename( Percent = Percent_city))  %>% 
-  full_join(table_otherCMA) %>%
+  full_join(table_otherCMA_0_9) %>% 
   select(province, area,total, N, Percent) %>%
   arrange(province)
+
 write.csv(table_poster, file=here("03_output","02_tables","Table_idata_by_area_0_to_9.csv"),row.names = F)
+
+beepr::beep("ping")
+```
+
+# results section
+```{r}
+total_0_9 = child_0_9_data %>% count()
+total_0_4 = child_0_4_data %>% count()
+
+percent_0_9 = child_0_9_data %>%  
+  group_by(n_languages) %>% 
+  summarize(N_group = n()) %>%
+  ungroup() %>% rowwise() %>%
+  mutate(Percent = N_group/total_0_9*100)
+
+percent_0_4 = child_0_4_data %>%  
+  group_by(n_languages) %>% 
+  summarize(N_group = n()) %>% rowwise() %>%
+  mutate(Percent = N_group/total_0_4*100)
+
 ```
 
 
-
+For consistency with the demographics analysis that used data from 0-to-9-year-olds, we report both the numbers for children 0-4, our age group of interest, and 0-9 year olds (in brackets). Using the PUMF individuals dataset, we found that across Canada, `r percent_0_4 %>% filter(n_languages == "Two or more") %>% pull(Percent) %>% round(1)`  % of children aged 0-9 (0-9: `r percent_0_9 %>% filter(n_languages == "Two or more") %>% pull(Percent) %>% round(1)` %, Missing: `r percent_0_9 %>% filter(is.na(n_languages)) %>% pull(N_group) `) used two or more languages in the home (Missing Data: `r percent_0_4 %>% filter(is.na(n_languages)) %>% pull(N_group) `). The rate of child bilingualism was largest in Northern Canada (i.e., Yukon, Northwest Territories, Nunavut), where `r table_prov_0_4 %>% filter(province == "Northern Canada") %>% pull(Percent)*100 %>% round(1)` % of children are bilingual (0-9: `r table_prov_0_9 %>% filter(province == "Northern Canada") %>% pull(Percent)*100 %>% round(1)` %). British Columbia, Alberta, Ontario, and Québec follow with child bilingualism rates of `r table_prov_0_4 %>% filter(province %in% c("Alberta", "Ontario", "Quebec", "British Columbia")) %>% pull(Percent) %>% range()*100` % (0-9: `r table_prov_0_9 %>% filter(province %in% c("Alberta", "Ontario", "Quebec", "British Columbia")) %>% pull(Percent) %>% range()*100`. The lowest child bilingualism rates were observed in Nova Scotia at  `r table_prov_0_4 %>% filter(province == "Nova Scotia") %>% pull(Percent) *100` % (0-9: `r table_prov_0_4 %>% filter(province == "Nova Scotia") %>% pull(Percent) *100`) and Newfoundland and Labrador at `r table_prov_0_4 %>% filter(province == "Newfoundland and Labrador") %>% pull(Percent) *100` % (0-9: `r table_prov_0_4 %>% filter(province == "Newfoundland and Labrador") %>% pull(Percent) *100` % ). The rate of bilingualism by province is shown in Table XYZ and in Figure ##.. 
+We also found that the rate of child bilingualism in 0-to-4-year-olds is higher in large metropolitan areas (for 0-to-9-year-olds, please see supplemental materials), such as Toronto (`r table_city_0_4 %>% filter(area == "Toronto") %>% pull(Percent)*100` %), Vancouver (`r table_city_0_4 %>% filter(area == "Vancouver") %>% pull(Percent)*100` %), Montreal (`r table_city_0_4 %>% filter(area == "Montréal") %>% pull(Percent)*100` %), Calgary  (`r table_city_0_4 %>% filter(area == "Calgary") %>% pull(Percent)*100` %), and Edmonton (`r table_city_0_4 %>% filter(area == "Edmonton") %>% pull(Percent)*100` %). This trend might also explain some of the differences observed amongst provinces, where provinces with larger cities had higher rates of bilingualism (i.e., British Columbia, Alberta, Ontario, and Québec). Due to the nature of the geographic information from the dataset we used, we were unable to investigate the patterns of bilingualism in areas outside of major metropolitan areas on a more fine-grained level. However, if we look at the data on children who do not live  in a major metropolitan area, we can compare bilingualism in more rural areas across provinces. Here, we found that the highest rate of bilingualism outside of major metropolitan areas was found in Northern Canada (`r province_data %>% filter(province == "Northern Canada", id == "Yukon") %>% pull(Percent)`, New Brunswick (`r province_data %>% filter(province == "New Brunswick") %>% pull(Percent)`) and Alberta (`r province_data %>% filter(province == "Alberta") %>% pull(Percent)`). 
 
 
 
