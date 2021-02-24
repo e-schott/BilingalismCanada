@@ -159,7 +159,7 @@ child_0_9_data = idata_child %>%
 ```
 ## table for poster
 ```{r}
-table_prov_0_9 = idata_child %>%
+table_prov_0_9 = child_0_9_data %>%
   group_by(province) %>%
   mutate(total = n()) %>% 
   group_by(province,total,n_languages) %>%
@@ -168,16 +168,18 @@ table_prov_0_9 = idata_child %>%
     filter(n_languages != "One Language")  %>%
   select(-n_languages)
 
-table_city_0_9 = idata_child %>%
+table_city_0_9 = child_0_9_data %>%
   group_by(province,area,n_languages) %>%
   summarize(N=n()) %>%
-  
-    mutate( Percent_city = round(N/sum(N),3)) %>%
+  group_by(province, area) %>% 
+  mutate(total = sum(N), 
+         Percent_city = round(N/total,3)) %>%
   ungroup() %>%
-mutate(      area = ifelse(area =="Other","_other",as.character(area)))%>% 
-    filter(n_languages != "One Language")  %>%
+  mutate(area = ifelse(area =="Other","_other",as.character(area)))%>% 
+  filter(n_languages != "One Language")  %>%
   select(-n_languages) %>%
-  arrange(area,-N) %>% filter(N >250 ) 
+  arrange(area,-N)  
+  #%>% filter(N >250 )  ## removed to have more complete table
 
 
 ```
@@ -215,9 +217,10 @@ table_otherCMA_0_9 = province_data_0_9 %>% group_by(province) %>% slice(1) %>% u
 
 table_poster = table_prov_0_9 %>% full_join(table_city_0_9 %>% 
   rename( Percent = Percent_city))  %>% 
-  full_join(table_otherCMA_0_9) %>% 
+  #full_join(table_otherCMA_0_9) %>% 
   select(province, area,total, N, Percent) %>%
-  arrange(province)
+  mutate(Percent = Percent * 100) %>% 
+  arrange(as.character(province))
 
 write.csv(table_poster, file=here("03_output","02_tables","Table_idata_by_area_0_to_9.csv"),row.names = F)
 
