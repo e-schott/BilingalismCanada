@@ -11,7 +11,7 @@ see poster created from this script: https://osf.io/4gekn/
 # 1. Preparation Steps
 ## Script settings
 ```{r}
-load_data_from_raw = TRUE # If true, loads data from .sav, else loads R file (faster)
+load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
 
 use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
 ```
@@ -358,6 +358,6 @@ idata_child %>% group_by(area) %>%
 # save data for future analysis
 ```{r}
 export(idata, file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata")) 
-
+beepr::beep("ping")
 ```
 
