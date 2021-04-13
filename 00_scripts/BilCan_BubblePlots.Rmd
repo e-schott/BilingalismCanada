@@ -53,19 +53,34 @@ idata_child_lang_combo_can = idata %>%
   select(-n_respondents) %>%
   arrange(-N)
 
-#idata_child_lang_combo_long %>% group_by(PR) %>% summarize(mean(N_respondents_by_province))
+#idata_child_lang_combo_can %>% group_by(province) %>% summarize(mean(N_respondents_by_province))
 ```
+# by province
+```{r}
+idata_child_lang_combo_province= idata_child %>% 
+  group_by(province) %>%
+  mutate(N_respondents_by_province = n())%>% ungroup() %>% 
+  filter(n_languages_numeric > 1 ) %>%
+  group_by(province,N_respondents_by_province,lang_pair) %>%
+  summarize(N=n())%>%
+  mutate( Percent = round(N/sum(N),3),
+          Percent_of_total_province = round(N/N_respondents_by_province,3)*100) %>%
+  arrange(province, -N)
+```
+
+
+
 # by city 
 ```{r}
 idata_child_lang_combo_CMA= idata_child %>% 
-  group_by(CMA) %>%
+  group_by(area) %>%
   mutate(N_respondents_by_CMA = n())%>% ungroup() %>%
-  filter(N_Two_or_more > 1 , CMA != "Other census metropolitan areas, census agglomerations and o") %>%
-  group_by(CMA,N_respondents_by_CMA,Lang_Combo_top2) %>%
+  filter(n_languages_numeric > 1 , area != "Other census metropolitan areas, census agglomerations and o") %>%
+  group_by(area,N_respondents_by_CMA,lang_pair) %>%
   summarize(N=n())%>%
   mutate( Percent = round(N/sum(N),3),
           Percent_of_total_CMA = round(N/N_respondents_by_CMA,3)*100) %>%
-  arrange(CMA, -N)
+  arrange(area, -N)
 ```
 
 
