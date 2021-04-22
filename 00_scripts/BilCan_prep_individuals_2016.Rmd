@@ -339,22 +339,36 @@ lang_pair_data %>%
   top_n(10) %>% 
   View()
 
+
+
+
 # collapse the language pairings with less than 10 ppl into an "other" category
 # exclude provinces where all language pairings have less than 10 ppl
 # write as csv
 lang_pair_data %>% 
   filter(age_group == "0 to 4 years") %>% 
   group_by(province) %>% 
-  mutate(language_pair_simplified = fct_lump_min(as.factor(language_pair), min = 10, other_level = "z_other")) %>% # create other category
-  count(language_pair_simplified) %>% 
-  mutate(percent = round(n/sum(n)*100)) %>% # add percent
+  mutate(language_pair_simplified_full = fct_lump_min(as.factor(language_pair), min = 10, other_level = "Other Language Pairings"),
+         language_pair_simplified_shortened = fct_lump_n(as.factor(language_pair_simplified_full), n = 10, other_level = "Other Language Pairings")) %>% # create other category
+  count(language_pair_simplified_shortened) %>%  
+  mutate(percent = round(n/sum(n)*100),
+         other_flag = ifelse(language_pair_simplified_shortened =="Other Language Pairings",1,0)) %>% # add percent
+  arrange(province, other_flag, -percent) %>% 
   filter(percent != 100) %>% # remove provinces that have only the other category
+  select(-other_flag) %>%
   write_csv(here("03_output", "02_tables", "language_pairs_by_province.csv"))
 
 
 
 # 0-9 year olds
-lang_pair_data %>% filter(age_group %in% c("0 to 4 years", "5 to 6 years", "7 to 9 years")) %>% group_by(province)%>% count(language_pair) %>% mutate(percent = round(n/sum(n)*100)) %>% arrange(province,-percent) %>% top_n(10) %>% View()
+lang_pair_data %>% 
+  filter(age_group %in% c("0 to 4 years", "5 to 6 years", "7 to 9 years")) %>% 
+  group_by(province)%>% 
+  count(language_pair) %>% 
+  mutate(percent = round(n/sum(n)*100)) %>% 
+  arrange(province,-percent) %>% 
+  top_n(10) %>% 
+  View()
 
 ```
 
