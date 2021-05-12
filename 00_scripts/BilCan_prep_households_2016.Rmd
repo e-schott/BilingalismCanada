@@ -735,6 +735,24 @@ hhdata_model_roc_exp <- hhdata_model_exp %>%
   filter(province != "Quebec")
 ```
 
+## All of Canada model
+
+```{r}
+m_all <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model, family = "binomial")
+
+summary(m_all)
+
+
+## interpreting summaries for sum coding - coefficients are difference between level and GRAND MEAN, last level of each predictor not included in model
+
+
+# model for only those children who have at least 1 bilingual adult
+
+m_exp <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_exp, family = "binomial")
+
+summary(m_exp)
+```
+
 ## RoC model
 
 ```{r}
@@ -878,6 +896,10 @@ newdata_exp <- with(hhdata_model_exp, expand.grid(n_biling_adults_group = unique
 
 ## 2. predict values for each combination
 
+# Canada all
+newdata_all$prediction <- predict(m_all, newdata=newdata_all)
+canada_all <- newdata_all
+
 # ROC all
 newdata_all$prediction <- predict(m_roc_all, newdata=newdata_all)
 roc_all <- newdata_all
@@ -886,6 +908,10 @@ roc_all <- newdata_all
 newdata_all$prediction <- predict(m_quebec_all, newdata=newdata_all)
 quebec_all <- newdata_all
 
+
+# Canada exposed
+newdata_exp$prediction <- predict(m_exp, newdata=newdata_exp)
+canada_exp <- newdata_exp
 
 # ROC exposed
 newdata_exp$prediction <- predict(m_roc_exp, newdata=newdata_exp)
@@ -929,6 +955,8 @@ prob_pred <- function(pred){
 }
 
 ### apply function to each of the 4 models
+canada_all_prob <- prob_pred(canada_all)
+canada_exp_prob <- prob_pred(canada_exp)
 roc_all_prob <- prob_pred(roc_all)
 roc_exp_prob <- prob_pred(roc_exp)
 quebec_all_prob <- prob_pred(quebec_all)
@@ -946,7 +974,7 @@ biling_pct <- function(hhdata_df){
   
   adults <- hhdata_df %>% 
     group_by(child_biling, n_biling_adults_group) %>% 
-    summarize(n = n()) %>% View()
+    summarize(n = n()) %>% 
     pivot_wider(names_from = child_biling, values_from = n) %>% 
     rename(predictor = n_biling_adults_group, monolingual = `0`, bilingual = `1`) %>% 
     filter(!is.na(predictor)) %>% 
@@ -991,11 +1019,12 @@ biling_pct <- function(hhdata_df){
 
 }
 
+canada_all_pct <- biling_pct(hhdata_model)
+canada_exp_pct <- biling_pct(hhdata_model_exp)
 roc_all_pct <- biling_pct(hhdata_model_roc)
 roc_exp_pct <- biling_pct(hhdata_model_roc_exp)
 quebec_all_pct <- biling_pct(hhdata_model_quebec)
 quebec_exp_pct <- biling_pct(hhdata_model_quebec_exp)
-
 
 
 ```
@@ -1003,6 +1032,7 @@ quebec_exp_pct <- biling_pct(hhdata_model_quebec_exp)
 ## reshape data for tables for manuscript
 
 ```{r}
+# RoC vs Quebec
 
 ## actual percentage data
 roc_all_table <- roc_all_pct %>% 
@@ -1028,20 +1058,16 @@ table_pct <- roc_all_table %>%
 write_csv(table_pct, here("03_output/Table-Percent-Multilingual-By-Characteristic.csv"))
 
 
-## predction data
-roc_all_table <- roc_all_prob %>% 
-  rename(`Rest of Canada` = mean_prob)
-roc_exp_table <- roc_exp_prob %>% 
-  rename(`Rest of Canada (bilingually-exposed)` = mean_prob)
-quebec_all_table <- quebec_all_prob %>% 
-  rename(`Quebec` = mean_prob)
-quebec_exp_table <- quebec_exp_prob %>% 
-  rename(`Quebec (bilingually-exposed)` = mean_prob)
+## Canada as a whole - actual percentage data
 
-table_prob <- roc_all_table %>% 
-  left_join(quebec_all_table, by = "predictor") %>%
-  left_join(roc_exp_table, by = "predictor") %>% 
-  left_join(quebec_exp_table, by = "predictor") %>% 
+canada_all_table <- canada_all_pct %>% 
+  rename(`All children` = biling_pct)
+canada_exp_table <- canada_exp_pct %>% 
+  rename(`Bilingually-exposed children` = biling_pct)
+
+
+canada_table_pct <- canada_all_table %>% 
+  left_join(canada_exp_table, by = "predictor") %>% 
   mutate_if(is.numeric, round, 2) %>% 
   add_row(predictor = "Immigration generation", .before = 15) %>% 
   add_row(predictor = "Income quintile", .before = 10) %>% 
@@ -1049,7 +1075,26 @@ table_prob <- roc_all_table %>%
   add_row(predictor = "Number of bilingual adults in the household", .before = 1) %>% 
   rename(Characteristic = predictor)
 
-write_csv(table_prob, here("03_output/Table-Probabilities.csv"))
+write_csv(canada_table_pct, here("03_output/Table-Percent-Multilingual-By-Characteristic-All-Canada.csv"))
+
+
+## predction data
+canada_all_table <- canada_all_prob %>% 
+  rename(`All children` = mean_prob)
+canada_exp_table <- canada_exp_prob %>% 
+  rename(`Bilingually-exposed children` = mean_prob)
+
+
+canada_table_prob <- canada_all_table %>% 
+  left_join(canada_exp_table, by = "predictor") %>% 
+  mutate_if(is.numeric, round, 2) %>% 
+  add_row(predictor = "Immigration generation", .before = 15) %>% 
+  add_row(predictor = "Income quintile", .before = 10) %>% 
+  add_row(predictor = "Highest level of parental education", .before = 5) %>% 
+  add_row(predictor = "Number of bilingual adults in the household", .before = 1) %>% 
+  rename(Characteristic = predictor)
+
+write_csv(canada_table_prob, here("03_output/Table-Probabilities-All-Canada.csv"))
 ```
 
 ##### missing data investigation
