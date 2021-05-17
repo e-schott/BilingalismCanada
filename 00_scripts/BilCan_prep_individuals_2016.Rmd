@@ -194,7 +194,6 @@ idata = idata %>%
 ```
 
 ### calculate number of languages spoken (individual)
-xxx actually maybe it would make sense to have a separate calculation about how many languages people speak "most" and how many they use "regularly"
 ```{r}
 # count how many lanuages each person speaks:
 true_false_language_columns = c("lang_most_eng", "lang_most_fre", "lang_most_oth","lang_regular_eng", "lang_regular_fre", "lang_regular_oth")
@@ -325,47 +324,104 @@ lang_pair_data = idata %>%
 lang_pair_data %>% filter(age_group == "0 to 4 years") %>% group_by(age_group) %>% count(language_pair) %>% mutate(percent = round(n/sum(n)*100)) %>% arrange(-percent) %>% top_n(10) %>% View()
 ```
 
+## fixing language combo names
+```{r}
+language_pair_dictionary = tibble(language_pair_old = unique(lang_pair_data$language_pair)) %>%
+  filter(str_detect(language_pair_old, "Other|AustroAsiatic", negate = TRUE)) %>%
+  mutate(language_pair = gsub("&", " & ", language_pair_old),
+         fix = str_detect( language_pair, "^English|^French|^Abo", negate = TRUE)) %>% 
+  separate(language_pair, into = c("lang1", "lang2"), sep = " & ", remove = FALSE) %>%
+  mutate(language_pair = ifelse(fix == TRUE, paste(lang2, lang1, sep = " & "), language_pair)) %>%
+  select(language_pair, language_pair_old)
+
+
+
+```
+
 
 # Table 2: look at languages by province
+## prep 
 ```{r}
-# 0 -4 year olds
-lang_pair_data %>% 
-  filter(age_group == "0 to 4 years") %>% 
-  group_by(province) %>% 
-  count(language_pair) %>% 
-  mutate(percent = round(n/sum(n)*100)) %>% 
-  arrange(-province, -percent) %>% 
-  filter(n > 10) %>%
-  top_n(10) %>% 
-  View()
+age_groups_of_interest = c("0 to 4 years", "5 to 6 years", "7 to 9 years")
 
-
-
-
-# collapse the language pairings with less than 10 ppl into an "other" category
-# exclude provinces where all language pairings have less than 10 ppl
-# write as csv
-
-lang_pair_by_province = 
-  lang_pair_data %>% 
-  filter(age_group %in% c("0 to 4 years", "5 to 6 years", "7 to 9 years")) %>% 
+n_children_by_age = idata %>% filter(age_group %in% age_groups_of_interest) %>%
   mutate(age_collapsed = fct_collapse(age_group, 
                       "age_0_to_4" = "0 to 4 years",
                       "age_5_to_9" = c("5 to 6 years", "7 to 9 years"))) %>% 
   group_by(province, age_collapsed) %>% 
-  count(language_pair) %>%  
-  mutate(percent = round(n/sum(n)*100),
-         other_flag = str_detect(language_pair, "Other")) %>% # add percent
-  arrange(province, -percent) %>% 
-  filter( other_flag != TRUE)%>%
-  select(-other_flag, - n) %>%
-  spread(age_collapsed, percent) %>%
-  rowwise() %>%
-  mutate(average_percent = mean(c(age_0_to_4,  age_5_to_9), na.rm = TRUE),
-         language_pair = gsub("&", " & ", language_pair)) %>% 
-  filter(average_percent >= 4, !is.na(age_5_to_9)) %>%
-  select(-average_percent) %>%
-  arrange(province, -age_0_to_4)
+  count(name = "total_by_age") %>%
+  ungroup()
+
+
+
+```
+
+## percentage out of bilingual children 
+```{r}
+
+lang_pair_by_province_and_age_long  = 
+  lang_pair_data %>% 
+  filter(age_group %in% age_groups_of_interest) %>%
+  # collapse two older ages into one category
+  mutate(age_collapsed = fct_collapse(age_group, 
+                      "age_0_to_4" = "0 to 4 years",
+                      "age_5_to_9" = c("5 to 6 years", "7 to 9 years"))) %>% 
+  group_by(province, age_collapsed) %>% 
+  count(language_pair) %>% 
+  left_join(n_children_by_age) %>% 
+  mutate(n_bilingual_children = sum(n),
+    percent_bilingual_children = round(n/n_bilingual_children*100,1), # add percent
+    percent_all_children = round(n/total_by_age*100,1)) %>% 
+  ungroup() 
+
+lang_pair_by_province_and_age = lang_pair_by_province_and_age_long %>%
+  select( - n, -total_by_age, - n_bilingual_children) %>% 
+  pivot_wider(names_from = age_collapsed, values_from = c("percent_bilingual_children","percent_all_children"))
+
+```
+## percentage out of all children
+```{r}
+lang_pair_by_province_all_ages_combined = lang_pair_data %>% 
+  
+  # collapse two older ages into one category
+  mutate(age_combined = fct_collapse(age_group, 
+                            "age_0_to_9" = age_groups_of_interest)) %>%
+  filter(age_combined == "age_0_to_9") %>%
+  # count how many children per language pair
+  group_by(province) %>%
+  count(language_pair) %>% 
+  # merge in number of children collapsed across ages
+   full_join(n_children_by_age %>% group_by(province) %>% summarize(total_by_age = sum(total_by_age))) %>%
+  #calculate percentages
+  
+   mutate(percent_bilingual_children_age_0_9 = round(n/sum(n)*100,1), # add percent
+         percent_all_children_age_0_9 = round(n/total_by_age*100, 1)) %>% 
+  select(-n, -total_by_age)
+  
+```
+
+
+
+## combine detailed age breakdown and summary across all ages of interest
+```{r}
+# 
+lang_pair_by_province = lang_pair_by_province_and_age %>% 
+  full_join(lang_pair_by_province_all_ages_combined) %>%
+  # remove other label
+  mutate( other_flag = str_detect(language_pair, "Other")) %>%
+  filter(other_flag != TRUE) %>% 
+  # exclude language combos that appear very rarely
+  filter(percent_bilingual_children_age_0_9 >= 4) %>% 
+  select(-other_flag) %>%
+  arrange(province, -percent_bilingual_children_age_0_9) %>%
+    # fix language pair names
+  rename(language_pair_old = language_pair) %>% 
+  left_join(language_pair_dictionary, by = "language_pair_old") %>%
+  select(-language_pair_old) %>%
+  relocate(language_pair, 
+           .after = province) %>%
+  relocate(percent_bilingual_children_age_0_9, 
+           .after = percent_bilingual_children_age_5_to_9)
 
 
 lang_pair_by_province %>%
@@ -373,18 +429,8 @@ lang_pair_by_province %>%
 
 
 
-# 0-9 year olds
-lang_pair_data %>% 
-  filter(age_group %in% c("0 to 4 years", "5 to 6 years", "7 to 9 years")) %>% 
-  group_by(province)%>% 
-  count(language_pair) %>% 
-  mutate(percent = round(n/sum(n)*100)) %>% 
-  arrange(province,-percent) %>% 
-  top_n(10) %>% 
-  View()
 
 ```
-
 
 
 ### create variable for geographical locations of interest
@@ -460,56 +506,9 @@ idata_child %>% group_by(area) %>%
 
 ```
 
-#### summary tables: bilingual children under 6yo by province & metropolitan area
-```{r}
-# commented out because I need to fix langGroup
-
-# idata %>% filter(AGEGRP == "0 to 4 years"| AGEGRP =="5 to 6 years") %>%
-#   group_by(gma.interest, LangGroup_individual) %>%
-#   summarize(N=n()) %>%
-#   spread(LangGroup_individual, N) %>%
-#   clean_names() %>%
-#   mutate(total = one_language+two_or_more, percent = round(two_or_more/total,3)) 
-
-```
 
 
-#### summary tables: number of bilingual adults living with a child under 5
 
-```{r}
-# commented out because I need to fix langGroup
-
-# 
-# idata_child %>%
-#   filter(Child0_1 == "1+"  ) %>%
-#   group_by(LangGroup_individual) %>%
-#   summarize(Count = n())%>%
-#   mutate(           Percent = Count/sum(Count))
-# 
-# # broken down by key metropolotain areas
-# 
-# idata_child %>%
-#   filter(!is.na(gma.interest)& Child0_1 == "1+" |Child2_5=="1+") %>%
-#   group_by( gma.interest, LangGroup_individual) %>%
-#   summarize(Count = n())%>%
-#   mutate(           Percent = Count/sum(Count)) 
-#   
-# 
-# 
-# # need to investigate what to do with these NA in other language
-# idata_child %>% filter(is.na(LangGroup)) %>% 
-#   group_by(LangPair_simplified) %>% 
-#   summarize(count=n())
-# 
-# # look at 2-5 year olds
-# idata_child %>% 
-#   filter(Child2_5 == "1+") %>%
-#   group_by(LangGroupBil) %>%
-#   summarize(Count = n())  %>%
-#   mutate(           Percent = Count/sum(Count))
-
-# these look relatively the same as the one-year olds, focus on the one-year olds becuase they are our population of interest and 2-5 year olds likely get more exposure outside of the house (not captured in this survey)
-```
 
 # save data for future analysis
 ```{r}
