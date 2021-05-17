@@ -1,55 +1,44 @@
 "province","area","total","N","Percent"
-"Newfoundland and Labrador","_other",13830,315,0.023
-"Newfoundland and Labrador","Other",NA,NA,0.04
-"Prince Edward Island",NA,3763,203,0.054
-"Prince Edward Island","Other",NA,NA,0.106
-"Nova Scotia",NA,24528,1490,0.061
-"Nova Scotia","_other",NA,585,0.042
-"Nova Scotia","Halifax",NA,905,0.085
-"Nova Scotia","Other",NA,NA,0.049
-"New Brunswick",NA,19720,2577,0.131
-"New Brunswick","_other",NA,1575,0.126
-"New Brunswick","Moncton – Saint John",NA,1002,0.139
-"New Brunswick","Other",NA,NA,0.125
-"Quebec",NA,215041,40807,0.19
-"Quebec","_other",NA,4645,0.069
-"Quebec","Montréal",NA,31052,0.286
-"Quebec","Ottawa – Gatineau",NA,2332,0.262
-"Quebec","Québec",NA,1869,0.089
-"Quebec","Sherbrooke – Trois-Rivières",NA,909,0.096
-"Quebec","Other",NA,NA,0.075
-"Ontario",NA,357536,77548,0.217
-"Ontario","_other",NA,5768,0.084
-"Ontario","Brantford – Guelph – Barrie",NA,1222,0.094
-"Ontario","Greater Sudbury - Thunder Bay",NA,1228,0.163
-"Ontario","Hamilton",NA,3036,0.153
-"Ontario","Kingston – Peterborough",NA,508,0.068
-"Ontario","Kitchener – Cambridge – Waterloo",NA,2182,0.156
-"Ontario","London",NA,1729,0.131
-"Ontario","Oshawa",NA,967,0.096
-"Ontario","Ottawa – Gatineau",NA,7452,0.286
-"Ontario","St. Catharines – Niagara",NA,1119,0.105
-"Ontario","Toronto",NA,50817,0.321
-"Ontario","Windsor",NA,1520,0.172
-"Ontario","Other",NA,NA,0.094
-"Manitoba",NA,33521,5913,0.176
-"Manitoba","_other",NA,1755,0.134
-"Manitoba","Winnipeg",NA,4158,0.203
-"Manitoba","Other",NA,NA,0.125
-"Saskatchewan",NA,28894,3066,0.106
-"Saskatchewan","_other",NA,1298,0.088
-"Saskatchewan","Regina – Saskatoon",NA,1768,0.125
-"Saskatchewan","Other",NA,NA,0.091
-"Alberta",NA,107460,18165,0.169
-"Alberta","_other",NA,3460,0.098
-"Alberta","Calgary",NA,8044,0.217
-"Alberta","Edmonton",NA,6661,0.19
-"Alberta","Other",NA,NA,0.098
-"British Columbia",NA,123109,23234,0.189
-"British Columbia","_other",NA,2501,0.066
-"British Columbia","Kelowna – Abbotsford",NA,1158,0.118
-"British Columbia","Vancouver",NA,18542,0.283
-"British Columbia","Victoria",NA,1033,0.105
-"British Columbia","Other",NA,NA,0.062
-"Northern Canada","_other",3019,795,0.263
-"Northern Canada","Other",NA,NA,0.338
+"Alberta",NA,14394,2314,16.1
+"Alberta","_other",5009,490,9.8
+"Alberta","Calgary",4868,1003,20.6
+"Alberta","Edmonton",4517,821,18.2
+"British Columbia",NA,12329,2259,18.3
+"British Columbia","_other",3943,240,6.1
+"British Columbia","Kelowna – Abbotsford",1045,144,13.8
+"British Columbia","Vancouver",6467,1775,27.4
+"British Columbia","Victoria",874,100,11.4
+"Manitoba",NA,4259,658,15.4
+"Manitoba","_other",1927,240,12.5
+"Manitoba","Winnipeg",2332,418,17.9
+"New Brunswick",NA,1932,249,12.9
+"New Brunswick","_other",1170,146,12.5
+"New Brunswick","Moncton – Saint John",762,103,13.5
+"Newfoundland and Labrador","_other",1310,52,4
+"Northern Canada","_other",494,167,33.8
+"Nova Scotia",NA,2391,188,7.9
+"Nova Scotia","_other",1275,63,4.9
+"Nova Scotia","Halifax",1116,125,11.2
+"Ontario",NA,39149,8030,20.5
+"Ontario","_other",7200,680,9.4
+"Ontario","Brantford – Guelph – Barrie",1545,141,9.1
+"Ontario","Greater Sudbury - Thunder Bay",769,139,18.1
+"Ontario","Hamilton",2097,284,13.5
+"Ontario","Kingston – Peterborough",769,61,7.9
+"Ontario","Kitchener – Cambridge – Waterloo",1726,218,12.6
+"Ontario","London",1511,203,13.4
+"Ontario","Oshawa",1158,102,8.8
+"Ontario","Ottawa – Gatineau",3009,904,30
+"Ontario","St. Catharines – Niagara",1045,99,9.5
+"Ontario","Toronto",17381,5002,28.8
+"Ontario","Windsor",939,197,21
+"Prince Edward Island","_other",388,40,10.3
+"Quebec",NA,24591,4558,18.5
+"Quebec","_other",7284,548,7.5
+"Quebec","Montréal",12849,3453,26.9
+"Quebec","Ottawa – Gatineau",1132,254,22.4
+"Quebec","Québec",2314,210,9.1
+"Quebec","Sherbrooke – Trois-Rivières",1012,93,9.2
+"Saskatchewan",NA,3920,437,11.1
+"Saskatchewan","_other",2084,189,9.1
+"Saskatchewan","Regina – Saskatoon",1836,248,13.5

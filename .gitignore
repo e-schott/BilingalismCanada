@@ -36,3 +36,7 @@ gcd_000b11a_e\.dbf
 *.zip
 
 *.Rdata
+
+*.xlsx
+
+.RDataTmp
