@@ -36,6 +36,7 @@ library(viridis)
 library(scales)
 library(ggrepel)
 library(rio)
+library(tidylog)
 ```
 
 
@@ -78,39 +79,69 @@ data_table2 = idata_child %>%
 ```
 
 ### province-wide
+
+xxx decide what to do with missing values
 ```{r}
 
 
 # calculate province-wide breakdown
 table_prov = data_table2 %>%
   group_by(province, age_collapsed) %>%
-  mutate(total = n()) %>% 
-  group_by(province, age_collapsed, total, n_languages) %>%
+  mutate(total_for_area_and_age = n()) %>% 
+  group_by(province, age_collapsed, total_for_area_and_age, n_languages) %>%
   summarize(N=n()) %>% 
-    mutate( Percent = N/total)%>% 
+    mutate( Percent = N/total_for_area_and_age)%>% 
     filter(n_languages != "One Language")  %>%
   select(-n_languages) %>%
   rename(N_bilingual = N) %>%
   mutate(area = "") %>%
   ungroup()
+
+# convert to wide data for displaying in paper
+table_prov_wide = table_prov %>% 
+  select(-total_for_area_and_age) %>%
+  pivot_wider(names_from = age_collapsed, 
+              values_from = c(Percent, N_bilingual))
 ```
+### province-wide combined across ages
+```{r}
+table_prov_0_9 = table_prov %>% 
+  group_by(province) %>%
+  summarise(Percent_age_0_to_9 = sum(N_bilingual)/sum(total_for_area_and_age))
+ 
+```
+### combine province-wide data
+```{r}
+
+table_prov_combined = table_prov_wide %>% select(-starts_with("N_biling")) %>%
+  full_join(table_prov_0_9)
+```
+
+
 
 ### canada-wide
+#### by age subgroup & combined
 ```{r}
 
 
 
-# calculate bilingualism % for all of canada, to merge into table later
+# calculate bilingualism % for all of Canada, to merge into table later
 total_across_canada = table_prov %>%
   group_by( age_collapsed) %>%
-  summarize(total= sum(total),
-            N_bilingual = sum(N_bilingual)) %>%
-  mutate(Percent = N_bilingual/total) 
+  summarize(total= sum(total_for_area_and_age),
+            N_bilingual = sum(N_bilingual)) %>% # need this intermediate step to be able to calculate combined column 0-9
+  mutate(Percent = N_bilingual/total,
+         country = "Canada") %>% 
+  pivot_wider(names_from = "age_collapsed", values_from = c("total", "N_bilingual", "Percent")) %>% # to be able to add a column on 0 to 9
+  mutate(Percent_age_0_to_9 = sum(N_bilingual_age_0_to_4, N_bilingual_age_5_to_9)/
+          sum(total_age_0_to_4, total_age_5_to_9) ) # combined across ages
 ```
 
+
 ### detailed area breakdown
+#### separately for each age group
 ```{r}
-table_city = data_table2 %>% 
+table_city_by_age_subgroup = data_table2 %>% 
   # remove provinces that don't have data on specific areas
   filter(!province %in% c("Newfoundland and Labrador", "Prince Edward Island", "Northern Canada")) %>%
   group_by(province, age_collapsed, area) %>%
@@ -125,14 +156,39 @@ table_city = data_table2 %>%
   select(province, area, age_collapsed, total, N_bilingual, Percent) %>%
   arrange(province,area, -N_bilingual) 
 
-combined_table = full_join( table_city, table_prov) %>%
-  full_join(total_across_canada) %>%
-  select(province, area, age_collapsed, Percent) %>%
-  pivot_wider(values_from = Percent, names_from = age_collapsed) %>%
-  arrange(province, area) %>% View()
-  mutate(Percent = scales::percent(Percent,1))
+
+```
+#### convert to wide dataset
+```{r}
+table_city_wide = table_city_by_age_subgroup %>%
+  select(-total) %>%
+  pivot_wider(names_from = "age_collapsed", values_from = c("N_bilingual", "Percent"))
 ```
 
+#### for 0-9 yo
+```{r}
+table_city_0_9 = table_city_by_age_subgroup %>% 
+  group_by(province, area) %>%
+  summarize(Percent_age_0_to_9 = sum(N_bilingual)/sum(total))
+```
+#### combine all ages
+```{r}
+table_city_full= table_city_0_9 %>% full_join(table_city_wide) %>% select(-starts_with("N_bilin"))
+```
+
+
+### combine all tables for canada, provinces, areas
+
+```{r}
+combined_table = total_across_canada %>% select(-starts_with("total"), -starts_with("N_bili")) %>%
+  full_join( table_city_full) %>%
+  full_join(table_prov_combined) %>% 
+  arrange(country,province, area) %>% 
+  mutate_at(vars(starts_with("Percent")), ~round(.,3)*100)
+
+
+rio::export(combined_table, file = here("03_output/02_tables/Table1_bilingualism_rates.csv"))
+```
 
 
 ## process "other" non-cma area data
@@ -153,11 +209,11 @@ export(., here("03_output", "00_processed_data", "idata_geo_area_0_to_4.Rdata"))
 ```
 # check rankings
 ```{r}
-table_prov %>%  
-  select(-total, -N_bilingual) %>% 
-  pivot_wider(values_from = Percent, names_from = age_collapsed) %>% 
-  mutate(rank_0_4 = rank(age_0_to_4)) %>% 
-  arrange(age_5_to_9)
+table_prov_combined %>%  
+  mutate(rank_0_4 = rank(-Percent_age_0_to_4),
+         rank_0_9 = rank(-Percent_age_0_to_9)) %>% 
+  mutate_at(vars(starts_with("Percent")), ~round(.,3)*100) %>% 
+  arrange(rank_0_9) %>% View(  )
 ```
 
 
@@ -175,7 +231,7 @@ xx need to figure out which of this stuff is still necessary!
 # write.csv(table_poster, file=here("03_output","02_tables","Table_idata_by_area_0_to_4.csv"),row.names = F)
 ```
 
-# look  at children 0-9
+# map data children 0-9
 ```{r}
 table(idata_child$age_group)
 child_0_9_data = idata_child %>%
