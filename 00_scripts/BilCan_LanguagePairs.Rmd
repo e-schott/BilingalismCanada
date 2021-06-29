@@ -137,8 +137,8 @@ canada_language_pairs = lang_pair_by_province_and_age_long %>%
  group_by(country, age_collapsed, language_pair, total_by_age_canada, n_bilingual_by_age_canada) %>%
       summarise(n_canada = sum(n)) %>%
   mutate(
-               percent_all_children =  round(n_canada/total_by_age_canada*100,5),
-               percent_bilingual_children = round(n_canada/n_bilingual_by_age_canada*100,5)) %>% 
+               percent_all_children =  round(n_canada/total_by_age_canada*100,1),
+               percent_bilingual_children = round(n_canada/n_bilingual_by_age_canada*100,1)) %>% 
   arrange(age_collapsed, -percent_bilingual_children) %>%
   ungroup()
 
@@ -168,8 +168,8 @@ canada_language_pair_data = canada_language_pairs %>%
   summarize(n = sum(n_canada)) %>%
   full_join(canada_language_pairs_totals) %>%
   mutate(
-               percent_all_children =  round(n/total_by_age_canada*100,5),
-               percent_bilingual_children = round(n/n_bilingual_by_age_canada*100,5)) %>% 
+               percent_all_children =  round(n/total_by_age_canada*100,1),
+               percent_bilingual_children = round(n/n_bilingual_by_age_canada*100,1)) %>% 
   arrange(age_collapsed, -percent_bilingual_children) %>%
   ungroup() %>%
   select( - n, -total_by_age_canada, - n_bilingual_by_age_canada) %>% 
