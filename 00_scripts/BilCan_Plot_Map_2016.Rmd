@@ -87,6 +87,7 @@ canada_census_2016_cma <- readOGR(dsn = here("02_map_data","census_map_2016",
 
 
 # this throws error message, this seems useful to fix this in future: https://stackoverflow.com/questions/46003060/error-using-region-argument-when-fortifying-shapefile
+
 cma_coordinates <- fortify(canada_census_2016_cma, region="CMANAME")%>% 
   rename(area_maps = "id")
 
@@ -94,7 +95,7 @@ rm(canada_census_2016_cma)
 cma_coordinates <- cma_coordinates %>%
   #merge(cma_coordinates, map_areas2016, by="area_maps") %>%
   rename(id = area_maps) %>%
-  relocate(long, lat, before = id)
+  relocate(long, lat, .before = id)
 
 
 cma_census_labels = cma_coordinates %>% distinct(id)
@@ -166,8 +167,6 @@ attempted_matching = stringdist_left_join(cma_biling_data,
                              by =c("area" = "id"), 
                              distance_col = NULL)
 
-#
-# 
 
 ```
 ## adjust labels for non-matching CMAs
@@ -179,10 +178,11 @@ dict_map = attempted_matching %>%
   select(province, area, id) %>% 
   # keep only those where matching failed
   filter(is.na(id) & area != "Ottawa – Gatineau") %>%
-  separate(col = area, into = c("area1", "area2"), 
-           remove = F, sep =c(" [:punct:] ")) %>% 
-  pivot_longer(cols = area1:area2, values_to = "area_split_up") %>%
-  select(-id, -name)
+  separate(col = area, into = c("area1", "area2", "area3"), 
+           remove = F, sep =c(" - | – ")) %>% 
+  pivot_longer(cols = area1:area3, values_to = "area_split_up") %>%
+  select(-id, -name) %>%
+  filter(!is.na(area_split_up))
  
 
 # add the split up cities to the dataframe
