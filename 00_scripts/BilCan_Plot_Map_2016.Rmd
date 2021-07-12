@@ -149,8 +149,10 @@ province_census_labels = province_coordinates %>% distinct(id)
 
 # load census language data
 ```{r read_census_data}
-province_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
-cma_biling_data = import(here("03_output", "00_processed_data", "idata_geo_area.Rdata"))
+geo_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
+province_data = geo_data %>% filter(area == "zz_other" | province %in% c("Northern Canada", "Prince Edward Island", "Newfoundland and Labrador") ) %>% select(-area)
+
+cma_biling_data = geo_data %>% filter(!area %in% c("","zz_other"))
 
 ```
 
@@ -158,6 +160,17 @@ cma_biling_data = import(here("03_output", "00_processed_data", "idata_geo_area.
 
 
 # Match  census language data & map data
+## split up northern canada into map-appropriate territories
+```{r}
+northern_data = data.frame(province= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
+
+province_data  = province_data %>% full_join(northern_data) %>%
+  mutate(id = ifelse(is.na(id), as.character(province), as.character(id)))
+
+
+
+```
+
 
 ## prepare matching census data to cma map data
 ```{r}
