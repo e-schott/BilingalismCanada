@@ -300,7 +300,7 @@ cma_labels_adj = cma_labels %>%
 plot_language = "English"
 
 legend_label = if_else(plot_language ==  "English",
-                       "Rate of \nchild \nbilingualism",
+                       "home bilingualism \namongst children",
                        "Pourcentage des \nenfants \nbilingues")
 
 
@@ -310,7 +310,7 @@ map_plot =  ggplot() +
   geom_map(data = province_data , 
            map = province_coordinates,
            aes(map_id = id, 
-               fill = Percent),
+               fill = Percent_age_0_to_9),
            color="white", 
            size=0.1)+ 
   # draw metropolitain areas overlaid
@@ -318,7 +318,7 @@ geom_map(data = cma_biling_data ,
          map = cma_coordinates,
          aes(map_id = id,
            #  group = group, 
-            fill = Percent),
+            fill = Percent_age_0_to_9),
          color = "white", 
          size = 0.05)+ 
      scale_fill_viridis(option = "D", 
