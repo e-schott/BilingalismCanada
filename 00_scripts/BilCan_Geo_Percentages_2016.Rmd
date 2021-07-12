@@ -196,9 +196,9 @@ this is for creating a map where the area of the province represent the bilingua
 ```{r}
 
 
-## save percentages for maps
+## save percentages for maps (without the summary percentage for all of canada)
 
-export(combined_table %>% filter(country !="Canada"), here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
+export(combined_table %>% filter(is.na(country)), here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
 
 
 ```
