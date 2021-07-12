@@ -36,7 +36,6 @@ library(viridis)
 library(scales)
 library(ggrepel)
 library(rio)
-library(plotly)
 ```
 
 
@@ -345,124 +344,7 @@ ggsave(here::here("03_output","01_figures","canada_map.png"),
 
 
 
-#### using the repel package
-```{r}
-
-map_repel_label_plot = map_plot + 
-  # Eastern Ontario + Quebec labels show to the right
-geom_text_repel(data = subset(cma_labels_adj, long > 6000000),
-                    aes(x= long, y= lat, label = city, group=NULL),
-   nudge_x       = 9195936-  subset(cma_labels_adj, long > 6000000)$long,
-    segment.size  = 1,
-    segment.color = "grey50",
-    direction     = "both",
-    vjust         = 1
-  ) + 
-  # West coast labels show up below the plot
-  geom_text_repel(data = subset(cma_labels_adj, long < 6000000),
-                    aes(x= long, y= lat, label = city, group=NULL),
-    nudge_y       = 950425 - subset(cma_labels_adj, long < 6000000)$lat,
-    segment.size  = 1,
-    segment.color = "grey50",
-    direction     = "both",
-    vjust         = 1
-  ) 
-map_repel_label_plot
- ggsave(here::here("03_output","01_figures","canada_map_diff_labels.png"), width = 13, height =7)
-
-
-
-```
-
-#### labels for west coast cities only 
-for zooming in on west coast
-```{r}
-western_canada_labels = c( "Calgary", "Edmonton",  "Halifax",     "Regina", 
-  "Vancouver", "Victoria", 
-"Winnipeg")
-
-map_plot + 
-  # Montreal, Ottawa,Toronto
-geom_label_repel(data          = subset(cma_labels, id %in% western_canada_labels ),
-                    aes(x= long, y= lat, label = id), size =2 ,
-                 alpha = 0.75 , seed=1234)
-  
- ggsave(here::here("03_output","01_figures","canada_map_transparent_labels.png"), width = 9, height =7)
-
-```
-
-## plot Montreal+Toronto map
-for zooming in on populated areas
-```{r fig.height = 7, fig.width = 10}
-# these are approximate coordinates that I adjusted to the window size I wanted by trial & error - nothing special about these numbers..
-zoom_plot_x_min = 6971050-10000
-zoom_plot_x_max = 7757551+500000
-zoom_plot_y_min = 720614.5-10000
-zoom_plot_y_max = 1439061.2+200000
-
-# create a new variable that indicates whether each label is in the zoom area or not (without this, plot would print labels not in zoom area)
-cma_labels_adj = cma_labels_adj %>%
-  mutate(zoom_area = if_else(between(long,
-                                     zoom_plot_x_min,
-                                     zoom_plot_x_max) &
-                             between(lat, 
-                                     zoom_plot_y_min,
-                                     zoom_plot_y_max),
-                            TRUE, FALSE))
-
-# calculate the best ratio for the plot by looking at actual ratio of coordinates
-ratio = (zoom_plot_x_max- zoom_plot_x_min ) /(zoom_plot_y_max-zoom_plot_y_min)
-# set the height we want for the plot
-height =7
-
-
-map_plot + 
-  # limit plot area to coordinates we've set
-  coord_cartesian(xlim=c(zoom_plot_x_min,zoom_plot_x_max),
-                ylim = c(zoom_plot_y_min,zoom_plot_y_max))+
-  # add labels for cities outside of the Greater Toronto Area (those are easy)
-  geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
-              
-           data = cma_labels_adj %>% filter(zoom_area == TRUE & 
-                                              is.na(GTA)), 
-           alpha=.75,
-           size=4, 
-           segment.colour = "grey50", 
-           segment.size = 1.5)+
-  # add labels for southern GTA areas (those are constrained to be further north & east)
-  geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
-              
-           data = cma_labels_adj %>% 
-             filter(GTA =="GTA-south"), 
-           alpha=.75,
-           ylim= c(817632.7,NA), 
-           xlim=c(NA,7026050),
-           size=4, 
-           segment.colour = "grey50", 
-           segment.size = 1.5 #, nudge_x = 50000,nudge_y =-20000
-           )   +
-  # add labels for western GTA (these are constrained to be further to the east)
-  geom_label_repel( aes(long, lat,label = label_linebreak, group=NULL),
-              
-           data = cma_labels_adj %>% 
-             filter( GTA =="GTA-west"), 
-           alpha=.75,
-           xlim= c(1158190.0,NA),
-           size=4, 
-           segment.colour = "grey50", 
-           segment.size = 1.5 #, nudge_x = 50000,nudge_y =-20000
-           )   +
-  guides(fill = "none")
-
-
-
- ggsave(here::here("03_output","01_figures","canada_map_zoomed.png"), width = ratio*height, height =height)
-
-```
-
-
-
-#### 10 cities map for paper
+#### labels only for 10 cities (paper)
 Largest city in each province (-PEI, -NL) selected, then added additional cities by largest pop across Canada to get to 10
 
 ```{r}
