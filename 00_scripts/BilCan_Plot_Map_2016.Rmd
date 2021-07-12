@@ -19,23 +19,28 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+#Readme
+important term: CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not). In this script, I use city/metropolitan area/cma interchangeably
 
-\\\
+the map for the census paper is composed of three main components:
+- map data for provinces (matched with the non-metropolitain areas % for each province). This provides the background for the plot
+- map data for CMAs (matched with % for CMAs). overlaid on the non-cma % per province
+- labels for CMAs (not all are shown in the current iteration of the map to prevent clutter)
+
 # load libraries
 ```{r load packages}
-#install.packages("gpclib", type="source")
 
 library(tidyverse)
-library(rgeos)
-library(rgdal)
-library(maptools)
-library(sp)
-library(here)
-library(fuzzyjoin)
-library(viridis)
-library(scales)
-library(ggrepel)
-library(rio)
+library(rgeos) #map-related stuff
+library(rgdal) #map-related stuff
+library(maptools) #map-related stuff
+library(sp) #map-related stuff
+library(here) # create working directory
+library(fuzzyjoin) # for joining messy character strings
+library(viridis) # colour scheme
+library(scales) # for showing % in graph
+library(ggrepel) # for labels
+library(rio) # easier loading & saving
 ```
 
 
@@ -45,17 +50,18 @@ library(rio)
 
 # load map data
 ## load map theme
-```{r}
+```{r load_map_theme}
 # decent, uncluttered map theme (needs devtools package tho)
+# needed for theme_map function in ggplot call below
 devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
 
 ```
 
 
-## census CMA map data
-CMA = census metropolitain area. can be a city (e.g., Montreal) or a combination of two cities that are ~200 km or so apart (if both cities are small.)
+## load census metropolitain area map data
+CMA = census metropolitain area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
 
-the map files are downloaded from the census website too. If you have any questions to what the files contain, there is an explanation pdf with the download. 
+the map files are downloaded from the census website. If you have any questions to what the files contain, there is an explanation pdf that comes with the download. 
 ```{r load_cma_maps}
 
 
@@ -134,19 +140,9 @@ rm(province_census_2016)
 
 
 ```
-## prepare province map ids for matching
-```{r}
-province_coordinates = province_coordinates  %>%
-  separate(col = id, into = c("id", "province_fr"), remove = T, sep = " \\/ ")
-
-province_census_labels = province_coordinates %>% distinct(id)
 
 
-# need to check here that province labels match
-
-```
-
-# load census language data
+## load census language data
 ```{r read_census_data}
 geo_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
 province_data = geo_data %>% filter(area == "zz_other" | province %in% c("Northern Canada", "Prince Edward Island", "Newfoundland and Labrador") ) %>% select(-area)
@@ -159,8 +155,21 @@ cma_biling_data = geo_data %>% filter(!area %in% c("","zz_other"))
 
 
 # Match  census language data & map data
-## split up northern canada into map-appropriate territories
-```{r}
+## province-level data
+### prepare province map ids for matching
+```{r prepare_matching}
+province_coordinates = province_coordinates  %>%
+  separate(col = id, into = c("id", "province_fr"), remove = T, sep = " \\/ ")
+
+province_census_labels = province_coordinates %>% distinct(id)
+
+
+# need to check here that province labels match
+
+```
+
+### split up northern canada into map-appropriate territories
+```{r prep_northern}
 northern_data = data.frame(province= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
 
 province_data  = province_data %>% full_join(northern_data) %>%
@@ -181,10 +190,10 @@ attempted_matching = stringdist_left_join(cma_biling_data,
 
 
 ```
-## adjust labels for non-matching CMAs
+### adjust labels for non-matching CMAs
 
-```{r}
-# fix the ones where multiple cities are combined into one CMA (except for Ottawa-Gatineau, which can be treated as single city but split across two provinces)
+```{r troubleshoot_merging}
+# fix the ones where multiple cities are combined into one metropolitain area (except for Ottawa-Gatineau, which can be treated as single city but split across two provinces)
 ## LK: removed names_to = NULL from pivot_longer, because it was causing an error, and I couldn't figure out why
 dict_map = attempted_matching %>% 
   select(province, area, id) %>% 
@@ -208,12 +217,11 @@ cma_biling_data = cma_biling_data %>%
 
 ```
 
-## merge census data and map data
-## CMAs
-```{r}
+### merge census data and map data
+```{r merge_cma}
 # these we need to fix by hand  
 
-cma_biling_data =cma_biling_data %>%
+cma_biling_data = cma_biling_data %>%
   mutate(area_for_merging = case_when(
     province == "Quebec" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (partie du QuÃ©bec / Quebec part)",
     province == "Ontario" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (Ontario part / partie de l'Ontario)	",
@@ -222,6 +230,13 @@ cma_biling_data =cma_biling_data %>%
     TRUE ~ area
   ))
 
+
+
+```
+
+### check that merging was successful
+If this code fails, the script will stop
+```{r check_merging}
 # try matching again, to see if anything else fails?
 cma_biling_data = cma_biling_data %>% 
     stringdist_left_join(cma_census_labels ,
