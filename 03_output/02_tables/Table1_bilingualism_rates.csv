@@ -1,45 +1,45 @@
 country,Percent_age_0_to_4,Percent_age_5_to_9,Percent_age_0_to_9,province,area
-Canada,15%,20%,18%,,
-,4%,4%,4%,Newfoundland and Labrador,""
-,7%,14%,10%,Prince Edward Island,""
-,6%,10%,8%,Nova Scotia,""
-,8%,14%,11%,Nova Scotia,Halifax
-,4%,6%,5%,Nova Scotia,zz_other
-,10%,16%,13%,New Brunswick,""
-,12%,15%,14%,New Brunswick,Moncton – Saint John
-,9%,16%,12%,New Brunswick,zz_other
-,17%,20%,19%,Quebec,""
-,24%,30%,27%,Quebec,Montréal
-,18%,26%,22%,Quebec,Ottawa – Gatineau
-,9%,9%,9%,Quebec,Québec
-,9%,9%,9%,Quebec,Sherbrooke – Trois-Rivières
-,7%,8%,8%,Quebec,zz_other
-,17%,24%,21%,Ontario,""
-,8%,10%,9%,Ontario,Brantford – Guelph – Barrie
-,13%,24%,18%,Ontario,Greater Sudbury - Thunder Bay
-,12%,15%,14%,Ontario,Hamilton
-,6%,9%,8%,Ontario,Kingston – Peterborough
-,10%,15%,13%,Ontario,Kitchener – Cambridge – Waterloo
-,12%,15%,13%,Ontario,London
-,8%,10%,9%,Ontario,Oshawa
-,24%,36%,30%,Ontario,Ottawa – Gatineau
-,8%,11%,9%,Ontario,St. Catharines – Niagara
-,25%,32%,29%,Ontario,Toronto
-,16%,25%,21%,Ontario,Windsor
-,7%,12%,9%,Ontario,zz_other
-,13%,18%,15%,Manitoba,""
-,16%,20%,18%,Manitoba,Winnipeg
-,8%,17%,12%,Manitoba,zz_other
-,9%,13%,11%,Saskatchewan,""
-,11%,16%,14%,Saskatchewan,Regina – Saskatoon
-,8%,10%,9%,Saskatchewan,zz_other
-,14%,18%,16%,Alberta,""
-,17%,24%,21%,Alberta,Calgary
-,17%,20%,18%,Alberta,Edmonton
-,9%,10%,10%,Alberta,zz_other
-,16%,20%,18%,British Columbia,""
-,13%,14%,14%,British Columbia,Kelowna – Abbotsford
-,24%,30%,27%,British Columbia,Vancouver
-,10%,13%,11%,British Columbia,Victoria
-,4%,8%,6%,British Columbia,zz_other
-,29%,38%,34%,Northern Canada,""
+Canada,15.5,20.4,18,,
+,3.9,4,4,Newfoundland and Labrador,""
+,7,13.8,10.3,Prince Edward Island,""
+,6,9.6,7.9,Nova Scotia,""
+,7.9,14.5,11.2,Nova Scotia,Halifax
+,4.3,5.6,4.9,Nova Scotia,zz_other
+,10.1,15.5,12.9,New Brunswick,""
+,11.5,15.2,13.5,New Brunswick,Moncton – Saint John
+,9.3,15.7,12.5,New Brunswick,zz_other
+,16.7,20.3,18.5,Quebec,""
+,24,29.6,26.9,Quebec,Montréal
+,18,26.4,22.4,Quebec,Ottawa – Gatineau
+,9.2,9,9.1,Quebec,Québec
+,9,9.4,9.2,Quebec,Sherbrooke – Trois-Rivières
+,6.9,8.1,7.5,Quebec,zz_other
+,17.1,23.7,20.5,Ontario,""
+,7.8,10.3,9.1,Ontario,Brantford – Guelph – Barrie
+,12.6,23.7,18.1,Ontario,Greater Sudbury - Thunder Bay
+,12.4,14.7,13.5,Ontario,Hamilton
+,6.5,9.4,7.9,Ontario,Kingston – Peterborough
+,9.9,15.2,12.6,Ontario,Kitchener – Cambridge – Waterloo
+,11.6,15.1,13.4,Ontario,London
+,8,9.5,8.8,Ontario,Oshawa
+,24.2,35.5,30,Ontario,Ottawa – Gatineau
+,7.6,11.3,9.5,Ontario,St. Catharines – Niagara
+,24.7,32.5,28.8,Ontario,Toronto
+,16.4,25.1,21,Ontario,Windsor
+,6.9,11.8,9.4,Ontario,zz_other
+,12.5,18.3,15.4,Manitoba,""
+,16.3,19.6,17.9,Manitoba,Winnipeg
+,7.9,16.9,12.5,Manitoba,zz_other
+,9.1,13.1,11.1,Saskatchewan,""
+,10.7,16.1,13.5,Saskatchewan,Regina – Saskatoon
+,7.6,10.4,9.1,Saskatchewan,zz_other
+,14.4,17.7,16.1,Alberta,""
+,17.1,23.9,20.6,Alberta,Calgary
+,16.9,19.5,18.2,Alberta,Edmonton
+,9.4,10.2,9.8,Alberta,zz_other
+,16.1,20.4,18.3,British Columbia,""
+,13,14.5,13.8,British Columbia,Kelowna – Abbotsford
+,24.3,30.4,27.4,British Columbia,Vancouver
+,10.2,12.7,11.4,British Columbia,Victoria
+,4.5,7.5,6.1,British Columbia,zz_other
+,29.3,38.4,33.8,Northern Canada,""
