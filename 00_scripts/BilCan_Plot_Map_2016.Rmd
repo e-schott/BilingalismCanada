@@ -90,7 +90,7 @@ canada_census_2016_cma <- readOGR(dsn = here("02_map_data","census_map_2016",
 
 
 
-
+canada_census_2016_cma = ms_simplify(canada_census_2016_cma, sys = TRUE, keep= .1)
 
 
 # this throws error message, this seems useful to fix this in future: https://stackoverflow.com/questions/46003060/error-using-region-argument-when-fortifying-shapefile
@@ -109,6 +109,8 @@ cma_census_labels = cma_coordinates %>% distinct(id)
 
 ```
 ## read census province map
+
+Useful  info on canadian map data in R here: https://tengl.net/blog/2020/1/7/drawing-canada-maps-in-r
 ```{r read_province_maps}
 if(!file.exists(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))) {
 download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000b16a_e.zip", destfile=here("02_map_data/lpr_000a16a_e.zip"))
@@ -356,17 +358,19 @@ geom_map(data = cma_biling_data ,
   theme(legend.position = c(0.71, 0.53))
  
  
+
+```
+## show map & save
+```{r}
 map_plot
 
 ggsave(here::here("03_output","01_figures","canada_map.png"), 
         width = 10, 
         height =7)
 ```
-### label placement
 
 
-
-#### labels only for 10 cities (paper)
+## labels for biggest 10 cities (paper)
 Largest city in each province (-PEI, -NL) selected, then added additional cities by largest pop across Canada to get to 10
 
 ```{r}
