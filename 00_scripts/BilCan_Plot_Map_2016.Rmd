@@ -41,6 +41,9 @@ library(viridis) # colour scheme
 library(scales) # for showing % in graph
 library(ggrepel) # for labels
 library(rio) # easier loading & saving
+library(geojsonio)
+library(spdplyr) # the `dplyr` counterpart for shapes
+library(rmapshaper) # the package that allows geo shape transformation
 ```
 
 
@@ -72,8 +75,7 @@ if(!file.exists(here("02_map_data","census_map_2016","lcma000a16a_e.shp"))) {
 # see the pdf in map_data/census_map_2016 for more info
 download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lcma000b16a_e.zip", destfile=here("02_map_data/census_map_2016.zip"))
 unzip(zipfile = here("02_map_data/census_map_2016.zip"), exdir =  here("02_map_data/census_map_2016"))
-# this currently does not work, but if it did it would simplify the map to make code run faster
-system("ogr2ogr canada.shp lcma000b16a_e.shp -simplify 0.01")
+
 }
 
 # what layers do we have? you can use this to check
@@ -117,23 +119,28 @@ unzip(here("02_map_data/lpr_000a16a_e.zip"), exdir = here("02_map_data","provinc
 
 
 # this simplifies the polygons so they load/plot faster
-# does not currently work
-system("ogr2ogr  lpr_000b16a_e.shp -simplify 0.01")
 }
 
 # what layers do we have? you can use this to check
 #   ogrListLayers(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))
 # but there are none, so the shapefile is the layer
 
-province_census_2016 <- readOGR(here::here("02_map_data",
+canada_raw <- readOGR(here::here("02_map_data",
                              "province_map_2016",
                              "lpr_000b16a_e.shp"),
                         layer = "lpr_000b16a_e",
                         use_iconv = TRUE, encoding = "UTF-8")
+
+canada_raw_json <- geojson_json(canada_raw)
+# simplify the coastlines so the map is easier to plot (see here for more info: https://cran.r-project.org/web/packages/rmapshaper/vignettes/rmapshaper.html) 
 # this takes forever!
+canada_raw_sim <- ms_simplify(canada_raw_json, sys = TRUE) # 3
+geojson_write(canada_raw_sim, file = "data/canada_cd_sim.geojson") # 4
+
+
 province_coordinates <- fortify(province_census_2016, 
                         region="PRNAME")
-# remove to ease load on memory 
+# remove big map object to ease load on memory 
 rm(province_census_2016)
 
 
