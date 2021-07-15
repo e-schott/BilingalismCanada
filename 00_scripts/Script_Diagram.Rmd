@@ -7,6 +7,8 @@ output: html_document
 library(DiagrammeR)
 library(rsvg)
 library(DiagrammeRsvg)
+library(here)
+here()
 ```
 
 ## R Markdown
@@ -46,7 +48,7 @@ digraph boxes_and_circles {
   B->D 
 }
 ") %>%
-export_svg %>% charToRaw %>% rsvg_pdf("graph.pdf")
+export_svg %>% charToRaw %>% rsvg_png(here("03_output/BilCan_Script_Overview.png"),  width = 10, height = 7)
 ```
 
 ## Including Plots
