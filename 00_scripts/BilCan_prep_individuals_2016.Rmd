@@ -126,7 +126,7 @@ if(use_reduced_data_set == TRUE) {
 # cleanup language variables
 We need to get from the format of the language questions in the census (see Language Reference Guide) to a categorization of people as bilingual/monolingual, knowing the specific language pairs someone speaks, etc. 
 ### simplify language factor levels
-The response options in the language questions are super long, cut them down to only TRUE/FALSE
+The response options in the language questions are super long, cut them down to only TRUE/FALSE to be able to reference them more easily
 ```{r}
 # remove the long label names and just keep the true/false label, for easier use later
 idata = idata %>%
@@ -139,17 +139,28 @@ idata = idata %>%
 
 
 ### clean up Write-in component for non-official languages (language heard most)
+make `lang_most_oth_write_in` more manageable
+- Step 1: create a column that is empty if no other language spoken, NA if no info available, and has the name of the language if there is another language spoken
+- Step 2: clean up the language names in that variable (make them short & easy to reference)
+- Step 3: create a true/false variable for that variable, like we have for English & French
 ```{r}
+
 idata = idata %>%
   
-  mutate(lang_most_oth_name = case_when(
-    lang_most_oth_write_in == "No non-official language" ~ "",
-    lang_most_oth_write_in == "Not available" ~ NA_character_,
-    lang_most_oth_write_in == "All other languages" ~ "Other",
+  mutate(
+    # create new column that has the name of the language spoken, with options for no lang/missing info/etc.
+    lang_most_oth_name = case_when(
+    lang_most_oth_write_in == "No non-official language" ~ "", # when no other languages, put empty string
+    lang_most_oth_write_in == "Not available" ~ NA_character_, # when info is missing, put NA
+    lang_most_oth_write_in == "All other languages" ~ "Other", # shorten "all other lang" to just "other", for convenience
+    
+    # now, we try to shorten the write-in component language names
+    # if it is a catch-all category, get rid of " languages" to have just "AustroAsiatic", for convenience
     str_detect(lang_most_oth_write_in, "languages")  ~ sub(" languages", "", lang_most_oth_write_in),
-     
+     # whenever there is additional info in brackets, remove
     TRUE ~  sub(" \\(.*", "", lang_most_oth_write_in)
   ),
+  # remove additional names for languages
   lang_most_oth_name = str_remove(lang_most_oth_name, "Persian|Panjabi|PilipinoFilipino")
 
   )
@@ -158,7 +169,7 @@ idata = idata %>%
 idata$lang_most_oth_name = to_any_case(as.character(idata$lang_most_oth_name), case = "big_camel")
 
 
-# create a variable that functions like all other home language variables and just says true/false for lang_most_oth_write_in  
+# create a variable that functions like for English and French that just says true/false for lang_most_oth_write_in  
 idata = idata %>% 
   mutate(lang_most_oth = case_when(
     lang_most_oth_name == "" ~ "False",
@@ -168,72 +179,55 @@ idata = idata %>%
   ))
 ```
 
-### clean up Write-in component for non-official languages (language heard regularly)
-```{r}
-idata = idata %>%
-  
-  mutate(lang_most_oth_name = case_when(
-    lang_most_oth_write_in == "No non-official language" ~ "",
-    lang_most_oth_write_in == "Not available" ~ NA_character_,
-    lang_most_oth_write_in == "All other languages" ~ "Other",
-    str_detect(lang_most_oth_write_in, "languages")  ~ sub(" languages", "", lang_most_oth_write_in),
-     
-    TRUE ~  sub(" \\(.*", "", lang_most_oth_write_in)
-  ),
-  lang_most_oth_name = str_remove(lang_most_oth_name, "Persian|Panjabi|PilipinoFilipino")
 
-  )
-
-# clean up naming convention to camel case to make it easier to paste and combine later (spaces are removed)
-idata$lang_most_oth_name = to_any_case(as.character(idata$lang_most_oth_name), case = "big_camel")
-
-
-# create a variable that functions like all other home language variables and just says true/false for lang_most_oth_write_in  
-idata = idata %>% 
-  mutate(lang_most_oth = case_when(
-    lang_most_oth_name == "" ~ "False",
-    lang_most_oth_name == "Not available" ~ NA_character_,
-    is.na(lang_most_oth_name) ~ NA_character_,
-    !is.na(lang_most_oth_write_in) ~ "True"
-  ))
-```
 
 ### calculate number of languages spoken (individual)
+#### combining language used most and regularly
+That is, if Eng & Fr are used regularly, and German sometimes, n =3
 ```{r}
-# count how many lanuages each person speaks:
+# count how many languages each person speaks:
 true_false_language_columns = c("lang_most_eng", "lang_most_fre", "lang_most_oth","lang_regular_eng", "lang_regular_fre", "lang_regular_oth")
 
 idata = idata  %>% 
-  mutate(n_languages_numeric = rowSums(.[true_false_language_columns] == "True", na.rm = TRUE)    ,
+  mutate(n_languages_numeric = rowSums(.[true_false_language_columns] == "True", na.rm = TRUE),
          n_languages = # make this a categorical variable
            case_when(n_languages_numeric == 0 ~ NA_character_,
                      n_languages_numeric == 1 ~ "One Language",
                      n_languages_numeric > 1 ~ "Two or more",
                      TRUE ~ NA_character_))
 
-# check result:
+# to check result, use:
 #View(idata %>% select( person_id, lang_most_eng:lang_regular_oth, lang_most_oth, n_languages))
-
-
-# count how many lanuages each person speaks:
-true_false_language_used_most = c("lang_most_eng", "lang_most_fre", "lang_most_oth")
-true_false_language_used_regularly = c("lang_regular_eng", "lang_regular_fre", "lang_regular_oth")
-
-idata = idata  %>% 
-  mutate(n_languages_used_most = rowSums(.[true_false_language_used_most] == "True", na.rm = TRUE),
-         n_languages_used_regularly = rowSums(.[true_false_language_used_regularly] == "True", na.rm = TRUE))
-         
-
-
 
 ```
 
-### create language pairs variable
+#### counting language used most and regularly separately
+In case we want to do calculations only on language used most, or regularly used languages
+That is, if Eng & Fr are used regularly, and German sometimes, n(languages used most) = 2, n (languages used regularly) = 1
 ```{r}
-# we need a column that says what languages that person speaks. So English_French, English&Italian&Other etc. 
-# if a person speaks a language at home (value is "True"), then copy the column name to new column lang_pair_ordered
+#create  a separate vector for the column names that contain info on each
+true_false_language_used_most = c("lang_most_eng", 
+                                  "lang_most_fre", 
+                                  "lang_most_oth")
+true_false_language_used_regularly = c("lang_regular_eng", 
+                                       "lang_regular_fre", 
+                                       "lang_regular_oth")
+
+# count how many languages each person speaks:
+idata = idata  %>% 
+  mutate(n_languages_used_most = rowSums(.[true_false_language_used_most] == "True", na.rm = TRUE),
+         n_languages_used_regularly = rowSums(.[true_false_language_used_regularly] == "True", na.rm = TRUE))
+```
+
+
+### create language pairs variable
+We need a column that says what languages that person speaks. So English_French, English&Italian&Other etc. 
+If a person speaks a language at home (value is "True"), then copy the column name to new column lang_pair_ordered
+```{r}
+
 
 # sorted by most spoken then regularly spoken languages (for the person)
+# concatenate language names with a "&"
 idata$lang_pair_most <- apply(idata[true_false_language_used_most], 1, function(x) paste(names(x[x=="True"]), collapse="&"))
 idata$lang_pair_regular <- apply(idata[true_false_language_used_regularly], 1, function(x) paste(names(x[x=="True"]), collapse="&"))
 
@@ -242,31 +236,53 @@ idata$lang_pair_regular <- apply(idata[true_false_language_used_regularly], 1, f
 ```
 
 ### clean up language pair variables
+remove NAs that are introduced when info is missing, clean up the name of the language from column name to name of language
 ```{r}
-# need to create a function here!
-# this takes a long time to run 
+# this takes a long time to run unfortunately
 # now we need to clean up the messy column names in each row:
 idata = idata %>%
-  mutate( lang_pair_most = ifelse(n_languages_numeric <2, NA_character_, lang_pair_most),
-    lang_pair_most = str_remove(lang_pair_most, "(NA&)+|(&NA)+"), # remove NA in beginning and middle
-   lang_pair_most =str_remove(lang_pair_most,"(&NA)+|(NA)+"), # remove NAs at End
-   lang_pair_most = str_replace(lang_pair_most, "lang_most_eng", "English"), # substitute English column names with word english
-   lang_pair_most = str_replace(lang_pair_most, "lang_most_fre", "French"), # same for french
-   lang_pair_most = str_replace(lang_pair_most, "lang_most_oth", as.character(lang_most_oth_name)),
+  mutate( # if there is only one language, lang_pair_most is NA 
+   lang_pair_most = ifelse(n_languages_numeric <2, NA_character_, lang_pair_most),
+       # clean up lang_pair_most values
+   lang_pair_most = str_remove(lang_pair_most, 
+                               "(NA&)+|(&NA)+"), # remove NA in beginning and middle
+   lang_pair_most = str_remove(lang_pair_most, 
+                               "(&NA)+|(NA)+"), # remove NAs at End
+   lang_pair_most = str_replace(lang_pair_most, 
+                                "lang_most_eng", 
+                                "English"), # substitute English column names with word english
+   lang_pair_most = str_replace(lang_pair_most, 
+                                "lang_most_fre", 
+                                "French"), # same for french
+   lang_pair_most = str_replace(lang_pair_most, 
+                                "lang_most_oth", 
+                                as.character(lang_most_oth_name)),
   )
 
-# for langauges heard regularly
+# for languages heard regularly
 idata = idata %>%
-  mutate( lang_pair_regular = ifelse(n_languages_numeric <2, NA_character_, lang_pair_regular),
-          lang_pair_regular = str_remove(lang_pair_regular, "(NA&)+|(&NA)+"), # remove NA in beginning and middle
-   lang_pair_regular =str_remove(lang_pair_regular,"&NA"), # remove NAs at End
-   lang_pair_regular = str_replace(lang_pair_regular, "lang_regular_eng", "English"), # substitute English column names with word english
-   lang_pair_regular = str_replace(lang_pair_regular, "lang_regular_fre", "French"), # same for french
-   lang_pair_regular = str_replace(lang_pair_regular, "lang_regular_oth", "Other") # for lang_regular_oth we don't know language, just call it other
+  mutate( # if there is only one language, lang_pair_regular is NA
+    lang_pair_regular = ifelse(n_languages_numeric <2, 
+                               NA_character_, 
+                               lang_pair_regular),
+    # clean up lang_pair regular values
+    lang_pair_regular = str_remove(lang_pair_regular, 
+                                   "(NA&)+|(&NA)+"), # remove NA in beginning and middle
+    lang_pair_regular =str_remove(lang_pair_regular,
+                                  "&NA"), # remove NAs at End
+    lang_pair_regular = str_replace(lang_pair_regular, 
+                                    "lang_regular_eng", 
+                                    "English"), # substitute English column names with word english
+    lang_pair_regular = str_replace(lang_pair_regular, 
+                                    "lang_regular_fre", 
+                                    "French"), # same for french
+    lang_pair_regular = str_replace(lang_pair_regular, 
+                                    "lang_regular_oth", 
+                                    "Other") # for lang_regular_oth we don't know language, just call it other
    )
 
 ```
-# combined languages used most and languages used regularly
+###combine languages used most and languages used regularly
 for now, we don't distinguish between those two!
 ```{r}
 
@@ -275,7 +291,7 @@ idata$lang_pair =  as.vector(apply(cbind(idata$lang_pair_most, idata$lang_pair_r
   idata %>% count(lang_pair) %>% arrange(-n) %>% View()
 ```
 
-# sort languages from a-z
+### sort languages from a-z
 needed to create language pair variable that does not distinguish between "English & French" and "French & English"
 ```{r}
 
@@ -298,21 +314,21 @@ idata = idata %>%
 
 
 
-### create variable for geographical locations of interest
+# create variable for geographical locations of interest
+Make some of the area names more manageable
 ```{r}
 
-idata$area = fct_recode(idata$area, Other = "Other census metropolitan areas, census agglomerations and o", `Greater Sudbury - Thunder Bay` = "Greater Sudbury / Grand Sudbury – Thunder Bay")
+idata$area = fct_recode(idata$area, 
+                        Other = "Other census metropolitan areas, census agglomerations and o",
+                        `Greater Sudbury – Thunder Bay` = "Greater Sudbury / Grand Sudbury – Thunder Bay")
 
-idata$area_interest = ifelse(idata$area %in% c("Vancouver", "Montréal", "Toronto","Ottawa - Gatineau" , "Calgary", "Edmonton"),as.character(idata$area), NA)
 ```
 
 
  
 
-## keep only children 0-4, save idata_child for creating map
-is this still used?? need to check 
-previously this only saved data from 0-4, may need changes in  other scripts
-
+#  save data for future analyses
+Geo_Percentages and Language pair script use this output
 ```{r}
 
 idata_child = idata %>%
@@ -320,8 +336,6 @@ idata_child = idata %>%
 saveRDS(idata_child, file = here::here("03_output","00_processed_data", "Individuals_child_data.rdata"))
 
   
-#gma_LangGroup_data = gma_LangGroup_data %>% 
-#  mutate(Area = agrep()
 
 ```
 
