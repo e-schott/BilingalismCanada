@@ -8,10 +8,10 @@ author: Esther Schott
 please email esther.schott@mail.concordia.ca if you have any questions
 see poster created from this script: https://osf.io/4gekn/
 
-# 1. Preparation Steps
+# Preparation Steps
 ## Script settings
 ```{r}
-load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
+load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (the latter is faster)
 
 use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
 ```
@@ -36,6 +36,7 @@ library(snakecase)
 ###  read in invididuals file
 if this is the first time you use this script on a computer, download the dataset from the odesi database. https://lib-ezproxy.concordia.ca/login?url=https://odesi.ca/ 
 Search 2016 Census on odesi, click on the save icon and then download the .sav FILE. Might work better on chrome than firefox. (look out for the "if the download does not start, click here" link that might appear.)
+if `load_data_from_raw == FALSE`, we skip this step to save time
 ```{r}
 
 
@@ -50,7 +51,7 @@ raw_idata =   readRDS(here("03_output/00_processed_data/idata_raw.Rdata"))
 ```
 
 ### clean up column names
-
+We want snake-case column names for easier access. ColNames are defined in `ColNamesDict.idata.csv`
 ```{r}
 
 dict_idata = tibble(old_name = names(raw_idata), explanation = var_label(raw_idata))
@@ -69,9 +70,9 @@ raw_idata = raw_idata %>% rename_at(vars(pull(individ_column_names_keep,old_name
 
 ```
 ### convert to categorical variables to factors to see variable labels
-```{r}
-# make factor - the spss variable has all variables stored as numeric, which makes them read into R as numeric (which means it doesn't show labels present in the dataset). Can use factorize to remedy that 
+the spss variable has all variables stored as numeric, which makes them read into R as numeric (which means it doesn't show labels present in the dataset). Can use factorize to remedy that 
 
+```{r}
 # from the column dictionary, keep only columns that are categorical 
 columns_to_convert_to_factor = individ_column_names %>%
   filter(type == "categorical") %>%
@@ -82,17 +83,18 @@ columns_to_convert_to_factor = individ_column_names %>%
 # batch convert to factor
 # this takes a bit long
 raw_idata = raw_idata %>%
-  mutate_at(.vars = vars(columns_to_convert_to_factor),
+  mutate_at(.vars = all_of(columns_to_convert_to_factor),
              .funs = factorize)
-# now, instead of numbers e.g. for provice we see the actual label in the df
+# now, instead of numbers e.g. for province we see the actual label in the df
 ```
 
 
 
 ### select variables of interest
+For an easier to manage dataset.
+keep all that we have renamed (to include more, edit the `ColNamesDict.csv` in datasets folder)
+
 ```{r}
-# select which variables are necessary for our analysis
-# keep all that we have renamed (to include more, edit the ColNamesDict.csv in datasets folder)
 
 idata = raw_idata %>% select(sort(pull(individ_column_names_keep, new_name)))
 ```
@@ -101,18 +103,20 @@ idata = raw_idata %>% select(sort(pull(individ_column_names_keep, new_name)))
 
 
 ## clean up age variables
+make it easier to differentiate children and adults in the dataset
 ```{r}
 
 
 # create age_bracket variable... 
 idata$age_bracket = ifelse(as.integer(idata$age_group)>6, "adult","child") # the 6th level is "15 to 17 years"
-
+# check that the result makes sense
 table( idata$age_group, idata$age_bracket)
 
 ```
 
 
-## use subset of full data (for troubleshooting)
+## use subset or full data (for troubleshooting)
+Usually, this will be set to `use_reduced_data_set == FALSE` unless we are troubleshooting something and want to work with a smaller dataset for faster computation
 ```{r}
 if(use_reduced_data_set == TRUE) {
   idata = idata %>%
@@ -120,8 +124,9 @@ if(use_reduced_data_set == TRUE) {
 }
 ```
 # cleanup language variables
-
+We need to get from the format of the language questions in the census (see Language Reference Guide) to a categorization of people as bilingual/monolingual, knowing the specific language pairs someone speaks, etc. 
 ### simplify language factor levels
+The response options in the language questions are super long, cut them down to only TRUE/FALSE
 ```{r}
 # remove the long label names and just keep the true/false label, for easier use later
 idata = idata %>%
