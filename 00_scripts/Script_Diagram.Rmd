@@ -48,15 +48,6 @@ digraph boxes_and_circles {
   B->D 
 }
 ") %>%
-export_svg %>% charToRaw %>% rsvg_png(here("03_output/BilCan_Script_Overview.png"),  width = 10, height = 7)
+export_svg %>% charToRaw %>% rsvg_png(here("03_output/BilCan_Script_Overview.png"),  width = 2000, height = 700)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
