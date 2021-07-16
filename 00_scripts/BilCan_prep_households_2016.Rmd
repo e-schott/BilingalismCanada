@@ -136,6 +136,7 @@ hhdata = hhdata %>%
 
 ## data cleaning -   language variables
 ### shorten variable levels
+
 ```{r clean_lang}
 
 # shorten the variable levels to just have true/false
@@ -146,7 +147,7 @@ hhdata = hhdata %>%
 
 
 ```
-# create true/false variable for lang_most_other
+### create true/false variable for lang_most_other
 This is the question where people write in their language, and we also want a true/false vector for this question so it paralells all the other language variables
 ```{r lang_most_other}
 # create a variable that functions like all other home language variables and just says true/false for lang_most_oth_write_in  
@@ -180,8 +181,8 @@ hhdata = hhdata %>%
 ```
 
 
-
-### calculate number of languages spoken (individual)
+## calculate additional language variables
+###  number of languages spoken (individual)
 
 ```{r n_languages}
 # for each of these columns, we want to know if the answer is True 
@@ -205,9 +206,9 @@ hhdata = hhdata  %>%
 ```
 
 ### create language pairs variable
-
+we need a column that says what languages that person speaks. So English_French, English&Italian&Other etc. 
 ```{r}
-# we need a column that says what languages that person speaks. So English_French, English&Italian&Other etc. 
+
 # if a person speaks a language at home (value is "True"), then copy the column name to new column lang_pair_ordered
 
 # sorted by most spoken then regularly spoken languages (for the person)
@@ -233,7 +234,9 @@ hhdata = hhdata %>%
 
 
 ```
-### create variables for each language in dataset
+#### create variables for each language in dataset
+this is needed to remove order effects in next step 
+English_French is the same for our purposes as French_English, and same for all other language pairs
 ```{r}
 
 hhdata  =  hhdata %>%
@@ -243,7 +246,8 @@ hhdata  =  hhdata %>%
 
 
 
-### simplify language pairs variable (sorted A-Z)
+#### simplify language pairs variable (sorted A-Z)
+this removes effects of order
 ```{r}
 
 # remove order by most spoken then regularly spoken languages (now sorted by A-Z)
