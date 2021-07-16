@@ -4,13 +4,13 @@ output:
   html_document:
     df_print: paged
 ---
-author: Esther Schott
+author: Esther Schott & Lena V. Kremin
 please email esther.schott@mail.concordia.ca if you have any questions
 see poster created from a previous version of this script: https://osf.io/4gekn/
 
-# 1. Preparation Steps
+# Preparation Steps
 ## Script settings
-```{r}
+```{r settings}
 load_data_from_raw = TRUE # If true, loads data from .sav, else loads R file (faster)
 # needs to be loaded from raw the first time you execute this script on a new computer! 
 
@@ -18,7 +18,7 @@ use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (
 ```
 
 ## load packages
-```{r echo=FALSE}
+```{r libraries echo=FALSE}
 library(here)
 library(tidyverse)
 library(tidylog)
@@ -38,7 +38,7 @@ library(codebook)
 if this is the first time you use this script on a computer, download the dataset from the odesi database. https://lib-ezproxy.concordia.ca/login?url=https://odesi.ca/ 
 Search 2016 Census on odesi, click on the save icon and then download the .sav FILE. Might work better on chrome than firefox. (look out for the "if the download does not start, click here" link that might appear.)
 if `load_data_from_raw == FALSE`, we skip this step to save time
-```{r}
+```{r read_from_file}
 # need to change to reading in factor solution as above
 if(load_data_from_raw == TRUE) {
   raw_hhdata = rio::import(here("01_datasets/pumf-98M0002-E-2016-hierarchical_F1.sav"),format = "sav", user_na = c("Not available", "88888888", "99999999"))
@@ -57,7 +57,7 @@ hh_column_names = import(here("01_datasets/ColNamesDict_hhdata.csv"))
 ## data cleaning - general
 
 ### clean up column names
-```{r}
+```{r clean_column_names}
 # we only want to rename columns that we created a new name for
 hh_column_names_keep = hh_column_names %>%
   filter(new_name!="")
@@ -66,7 +66,7 @@ hh_column_names_keep = hh_column_names %>%
 raw_hhdata = raw_hhdata %>% rename_at(vars(pull(hh_column_names_keep,old_name)), ~ pull(hh_column_names_keep,new_name))
 ```
 ### convert to categorical variables to factors to see variable labels
-```{r}
+```{r make_factors}
 # make factor - the spss variable has all variables stored as numeric, which makes them read into R as numeric (which means it doesn't show labels present in the dataset). Can use factorize to remedy that 
 
 # from the column dictionary, keep only columns that are categorical 
@@ -87,7 +87,7 @@ raw_hhdata = raw_hhdata %>%
 
 
 ### select variables of interest
-```{r}
+```{r select_variables}
 # select which variables are necessary for our analysis
 # keep all that we have renamed (to include more, edit the ColNamesDict.csv in datasets folder)
 
@@ -96,7 +96,7 @@ hhdata = raw_hhdata %>% select(pull(hh_column_names_keep, new_name))
 
 ### create variable for households with children 9 and under
 
-```{r}
+```{r child_variable}
 # create a variable that says whether child younger than 10 lives in household
 
 
@@ -112,7 +112,7 @@ hhdata = hhdata %>%
 
 ### use subset of full data (for troubleshooting)
 This is necessary while creating the code because some code is SLOW. change use_reduced_data_set to change at the top of the script
-```{r}
+```{r reduce_dataset}
 
 if(use_reduced_data_set == TRUE) {
   # select X unique households to keep in subset
@@ -126,7 +126,7 @@ if(use_reduced_data_set == TRUE) {
 
 ### clean up area variable
 Change "Other census metropolitan areas, Census Agglomerations and [..]" to just "other"
-```{r}
+```{r clean_area_var}
 hhdata = hhdata %>%
   mutate(area = sub(" .*", "", area)) # delete all strings after a space
 
@@ -136,7 +136,7 @@ hhdata = hhdata %>%
 
 ## data cleaning -   language variables
 ### shorten variable levels
-```{r}
+```{r clean_lang}
 
 # shorten the variable levels to just have true/false
 # from "True - Respondent reported English [..]" to just "True"
@@ -148,7 +148,7 @@ hhdata = hhdata %>%
 ```
 # create true/false variable for lang_most_other
 This is the question where people write in their language, and we also want a true/false vector for this question so it paralells all the other language variables
-```{r}
+```{r lang_most_other}
 # create a variable that functions like all other home language variables and just says true/false for lang_most_oth_write_in  
 hhdata = hhdata %>% 
   mutate(lang_most_oth = case_when(
@@ -166,7 +166,7 @@ hhdata = hhdata %>%
 
 ### clean up Write-in component for non-official languages
 clean up so variable empty if no other language spoken, NA if no info available, and has the name of the language if there is another language spoken
-```{r}
+```{r clean_write_in}
 hhdata = hhdata %>%
   
   mutate(lang_most_oth_write_in = case_when(
@@ -183,7 +183,7 @@ hhdata = hhdata %>%
 
 ### calculate number of languages spoken (individual)
 
-```{r}
+```{r n_languages}
 # for each of these columns, we want to know if the answer is True 
 true_false_language_columns = c("lang_most_eng", "lang_most_fre", "lang_most_oth","lang_regular_eng", "lang_regular_fre", "lang_regular_oth")
 
@@ -256,9 +256,9 @@ hhdata = hhdata %>% select(sort(names(hhdata)))
 ```
 
 
-# Descriptives
+# Create additional variables for predictor analysis
 ## keep only households with kids under 10
-```{r}
+```{r desc_data}
 # restrict to kids under 10
 # keep only households that have at least one child under 10
 hhdata_child = hhdata %>%
@@ -266,62 +266,10 @@ hhdata_child = hhdata %>%
 ```
 
 
-## summary tables: children under 9 years
-```{r}
-
-
-# number of bilinguals
-#canadian average:
-hhdata_child %>%
-filter(age_group=="0 to 9 years") %>%
-  group_by(N_languages_person) %>%
-  summarize(N=n()) %>%
-    mutate( Percent = N/sum(N)) 
 
 
 
-
-
-(area_lang_data = hhdata_child %>%
-filter(age_group=="0 to 9 years") %>%
-  group_by(province,area,N_languages_person) %>%
-  summarize(N=n()) %>%
-    mutate( Percent = round(N/sum(N),3))%>%
-    filter(N_languages_person != "One Language"))
-
-
-# # specific language combos
- hhdata_child_langPair = hhdata_child %>%
-   filter(age_group=="0 to 9 years",N_languages_person_numeric>1 ) %>%
-   group_by(province,lang_pair) %>%
-   summarize(N=n())%>%
-   mutate( Percent = round(N/sum(N),3))%>%
-   arrange(province, -N)
-
- hhdata_child_langPair=hhdata_child_langPair %>% group_by(province) %>%
-   slice(1:5) %>%
-   mutate(id=seq_along(Percent))
-
-# add nicer language labels to graph (need to adapt to new data)
-#lang_dict = read_csv(file= here("01_datasets","LangPair_Dict_2016.csv"))
-#hhdata_child_langPair = full_join(hhdata_child_langPair, lang_dict, by = c("lang_pair"= "Lang_Combo_top2" )
-
-
-```
-
-
-# export for analysis in other scripts
-```{r}
-
-# this contains ALL households (in case another analysis needs all data)
-export(hhdata, file = here("03_output/00_processed_data/hhdata_preprocessed.Rdata"))
-```
-
-
-
-
-
-# getting data from only adults in child's households
+## getting data from only adults in child's households
 ```{r}
 # filter out children
 hhdata_child_adult <- hhdata_child %>% 
@@ -377,18 +325,16 @@ adults_n <- adults_n %>%
 
 adults_n$n_biling_adults_group <- factor(adults_n$n_biling_adults_group, levels = c("None", "One Adult", "Two Adults", "Three or More Adults"))
 
-# # get proportion of bilingual adults per household
-# adults_n <- adults_n %>% 
-#   left_join(adults_biling_n, by = "household_id") %>% 
-#   mutate(n_biling_adults = replace_na(n_biling_adults, 0), 
-#          prop_biling_adults = n_biling_adults / n_adults,
-#          
-         # create factor for groups of # of bilingual adults
 
 
+
+
+```
+## clean up education variable
+currently 8 factor levels. want to change to 5 to match Turcotte analyses. merging post-secondary levels together
+```{r}
 ### education
 
-# currently 8 factor levels. want to change to 5 to match Turcotte analyses. merging post-secondary levels together
 
 hhdata_child_adult <- hhdata_child_adult %>% 
   mutate(education_rank = case_when(
@@ -404,6 +350,10 @@ hhdata_child_adult <- hhdata_child_adult %>%
 
   # make an ordered factor
 hhdata_child_adult$education_rank  <-  factor(hhdata_child_adult$education_rank, levels = c("No high school diploma", "High school diploma", "Post-secondary diploma", "Bachelor's degree", "Graduate degree"), ordered = TRUE)
+```
+## look up highest education for each household
+```{r}
+
 
 adults_edu <- hhdata_child_adult %>% 
   group_by(household_id) %>% 
@@ -411,11 +361,10 @@ adults_edu <- hhdata_child_adult %>%
   mutate(highest_ed = as.factor(highest_ed))
 
 
-
 ```
 
 
-# create df for only children
+## create df for only children (for predictor analysis)
 
 ```{r}
 hhdata_child_only <- hhdata_child %>% 
