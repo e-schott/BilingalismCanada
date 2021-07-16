@@ -1,5 +1,5 @@
 ---
-title: "Bilingualism in Canada: Geographic Distribution"
+title: "Bilingualism in Canada: Preparation for Map"
 author: Esther Schott (esther.schott@mail.concordia.ca)
 output: html_document
 ---
@@ -37,18 +37,14 @@ library(maptools) #map-related stuff
 library(sp) #map-related stuff
 library(here) # create working directory
 library(rio) # easier loading & saving
+library(here)
 library(geojsonio)
 library(spdplyr) # the `dplyr` counterpart for shapes
 library(rmapshaper) # the package that allows geo shape transformation
 ```
 
 
-
-
-
-
-
-## load census metropolitain area map data
+## load census metropolitan area map data
 CMA = census metropolitain area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
 
 the map files are downloaded from the census website. If you have any questions to what the files contain, there is an explanation pdf that comes with the download. 
@@ -77,31 +73,30 @@ canada_census_2016_cma <- readOGR(dsn = here("02_map_data","census_map_2016",
 
 
 
+
+
+
+
+```
+### other steps
+```{r}
 canada_census_2016_cma = ms_simplify(canada_census_2016_cma, sys = TRUE, keep= .1)
 
 
-# this throws error message, this seems useful to fix this in future: https://stackoverflow.com/questions/46003060/error-using-region-argument-when-fortifying-shapefile
 
-cma_coordinates <- fortify(canada_census_2016_cma, region="CMANAME")%>% 
+
+cma_coordinates <- fortify(canada_census_2016_cma, region="CMANAME") %>%
   rename(area_maps = "id")
 
 rm(canada_census_2016_cma)
-cma_coordinates <- cma_coordinates %>%
-  #merge(cma_coordinates, map_areas2016, by="area_maps") %>%
-  rename(id = area_maps) %>%
-  relocate(long, lat, .before = id)
-
-
 
 ```
-### simplify
+### save output
 ```{r}
-canada_raw_json <- geojson_json(canada_raw)
-# simplify the coastlines so the map is easier to plot (see here for more info: https://cran.r-project.org/web/packages/rmapshaper/vignettes/rmapshaper.html) 
-# this takes forever!
-canada_census_2016_cma = ms_simplify(canada_census_2016_cma, sys = TRUE)
+export(cma_coordinates, file = here("02_map_data/cma_map_data.Rdata")) 
 
 ```
+
 
 
 ## read census province map
@@ -116,14 +111,20 @@ download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limi
 unzip(here("02_map_data/lpr_000a16a_e.zip"), exdir = here("02_map_data","province_map_2016"))
 
 
-# this simplifies the polygons so they load/plot faster
 }
 
+
+
+
+
+```
+### other steps
+```{r}
 # what layers do we have? you can use this to check
 #   ogrListLayers(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))
 # but there are none, so the shapefile is the layer
 
-canada_raw <- readOGR(here::here("02_map_data",
+province_census_2016 <- readOGR(here::here("02_map_data",
                              "province_map_2016",
                              "lpr_000b16a_e.shp"),
                         layer = "lpr_000b16a_e",
@@ -131,28 +132,18 @@ canada_raw <- readOGR(here::here("02_map_data",
 
 
 
-
+province_coordinates <- fortify(province_census_2016, 
+                        region="PRNAME")
 # remove big map object to ease load on memory 
 rm(province_census_2016)
 
-
-
-
 ```
 
 
-##Simplify data
-```{r}
-canada_raw_json <- geojson_json(canada_raw)
-# simplify the coastlines so the map is easier to plot (see here for more info: https://cran.r-project.org/web/packages/rmapshaper/vignettes/rmapshaper.html) 
-# this takes forever!
-canada_raw_sim <- ms_simplify(canada_raw_json, sys = TRUE) # 3
-
-```
 
 ## save output
 ```{r}
-geojson_write(canada_raw_sim, file = "data/canada_cd_sim.geojson") # 4
+export(province_coordinates, file = here("02_map_data/province_map_data.Rdata")) 
 
 ```
 
