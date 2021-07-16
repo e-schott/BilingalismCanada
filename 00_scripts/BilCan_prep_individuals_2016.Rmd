@@ -11,7 +11,8 @@ see poster created from this script: https://osf.io/4gekn/
 # Preparation Steps
 ## Script settings
 ```{r}
-load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (the latter is faster)
+load_data_from_raw = TRUE # If true, loads data from .sav, else loads R file (the latter is faster)
+# needs to be loaded from raw the first time you execute this script on a new computer!  
 
 use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
 ```

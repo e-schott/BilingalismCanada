@@ -11,7 +11,8 @@ see poster created from a previous version of this script: https://osf.io/4gekn/
 # 1. Preparation Steps
 ## Script settings
 ```{r}
-load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
+load_data_from_raw = TRUE # If true, loads data from .sav, else loads R file (faster)
+# needs to be loaded from raw the first time you execute this script on a new computer! 
 
 use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
 ```
@@ -20,17 +21,12 @@ use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (
 ```{r echo=FALSE}
 library(here)
 library(tidyverse)
+library(tidylog)
 library(rio) # for reading in SPSS files
 library(labelled)
-#library(cowplot)
-#library(viridis)
 library(janitor)
-
 library(codebook)
-
-
-library(scales)
-
+#library(scales)
 
 ```
 
@@ -38,10 +34,10 @@ library(scales)
 
 #  HOUSEHOLDS dataset
 
-
-
-
 ## read in dataset 
+if this is the first time you use this script on a computer, download the dataset from the odesi database. https://lib-ezproxy.concordia.ca/login?url=https://odesi.ca/ 
+Search 2016 Census on odesi, click on the save icon and then download the .sav FILE. Might work better on chrome than firefox. (look out for the "if the download does not start, click here" link that might appear.)
+if `load_data_from_raw == FALSE`, we skip this step to save time
 ```{r}
 # need to change to reading in factor solution as above
 if(load_data_from_raw == TRUE) {
@@ -98,10 +94,6 @@ raw_hhdata = raw_hhdata %>%
 hhdata = raw_hhdata %>% select(pull(hh_column_names_keep, new_name))
 ```
 
-
-
-
-
 ### create variable for households with children 9 and under
 
 ```{r}
@@ -133,24 +125,30 @@ if(use_reduced_data_set == TRUE) {
 ```
 
 ### clean up area variable
+Change "Other census metropolitan areas, Census Agglomerations and [..]" to just "other"
 ```{r}
 hhdata = hhdata %>%
-  mutate(area = sub(" .*", "", area))
+  mutate(area = sub(" .*", "", area)) # delete all strings after a space
 
 ```
 
 
 
 ## data cleaning -   language variables
+### shorten variable levels
 ```{r}
 
-#make this simpler
-
-
+# shorten the variable levels to just have true/false
+# from "True - Respondent reported English [..]" to just "True"
 hhdata = hhdata %>%
   mutate_at( .vars = vars(lang_most_eng, lang_most_fre, lang_regular_eng, lang_regular_fre, lang_regular_oth),
-             ~ fct_relabel(., ~str_remove(., '\\s*-.*')))
+             ~ fct_relabel(., ~str_remove(., '\\s*-.*'))) # remove all characters after space
 
+
+```
+# create true/false variable for lang_most_other
+This is the question where people write in their language, and we also want a true/false vector for this question so it paralells all the other language variables
+```{r}
 # create a variable that functions like all other home language variables and just says true/false for lang_most_oth_write_in  
 hhdata = hhdata %>% 
   mutate(lang_most_oth = case_when(
@@ -161,10 +159,13 @@ hhdata = hhdata %>%
 # test that this is working: 
 # table(hhdata$lang_most_oth_write_in, hhdata$lang_most_oth)
 
-###LK: do the same for mother tongue?
 
 ```
+
+
+
 ### clean up Write-in component for non-official languages
+clean up so variable empty if no other language spoken, NA if no info available, and has the name of the language if there is another language spoken
 ```{r}
 hhdata = hhdata %>%
   
@@ -172,6 +173,7 @@ hhdata = hhdata %>%
     lang_most_oth_write_in == "No non-official language" ~ "",
     lang_most_oth_write_in == "Not available" ~ NA_character_,
     lang_most_oth_write_in == "All other single languages" ~ "Other",
+    # in all other cases, shorten the answer to just the first word, for easier reference
     TRUE ~  sub(" .*", "", lang_most_oth_write_in)
   ))
     
@@ -182,9 +184,12 @@ hhdata = hhdata %>%
 ### calculate number of languages spoken (individual)
 
 ```{r}
-# count how many lanuages each person speaks:
+# for each of these columns, we want to know if the answer is True 
 true_false_language_columns = c("lang_most_eng", "lang_most_fre", "lang_most_oth","lang_regular_eng", "lang_regular_fre", "lang_regular_oth")
 
+
+# count how many languages each person speaks:
+# if the answer to any of the above columns is True, count them
 hhdata = hhdata  %>% 
   mutate(N_languages_person_numeric = rowSums(.[true_false_language_columns] == "True", na.rm = TRUE),
          N_languages_person = # make this a categorical variable
