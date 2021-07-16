@@ -1,5 +1,5 @@
 ---
-title: "Bilingualism in Canada: Geographic Distribution"
+title: "Bilingualism in Canada: Plot Canada Map"
 author: Esther Schott (esther.schott@mail.concordia.ca)
 output: html_document
 ---
@@ -45,41 +45,43 @@ library(rio) # easier loading & saving
 ```
 
 
-
-
-
-
 # load map data
 ## load map theme
 ```{r load_map_theme}
 # decent, uncluttered map theme (needs devtools package tho)
 # needed for theme_map function in ggplot call below
 devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
-test = st_read(here("02_map_data/canada_provinces/canada_provinces.geojson"), quiet = TRUE) 
+ 
 ```
 
 
-## load census metropolitain area map data
-CMA = census metropolitain area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
+## load census metropolitan area map data
+CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
 
 the map files are downloaded from the census website. If you have any questions to what the files contain, there is an explanation pdf that comes with the download. 
 ```{r load_cma_maps}
 
-cma_coordinates <- st_read("data/canada_cd_sim.geojson", quiet = TRUE) 
+cma_coordinates <- import(here("02_map_data/cma_map_data.Rdata")) 
 
+cma_coordinates <- cma_coordinates %>%
+  rename(id = area_maps) %>%
+  relocate(long, lat, .before = id)
 
-
-cma_census_labels = cma_coordinates %>% distinct(id)
+cma_census_labels = cma_coordinates %>%  group_by(id) %>% 
+  summarize(
+  # y
+  long = mean(long), 
+  # x 
+  lat = mean(lat)) 
 
 ```
 ## read census province map
 
 Useful  info on canadian map data in R here: https://tengl.net/blog/2020/1/7/drawing-canada-maps-in-r
 ```{r read_province_maps}
-province_census_2016 <- st_read("data/canada_cd_sim.geojson", quiet = TRUE) 
+province_coordinates  <- import( here("02_map_data/province_map_data.Rdata")) 
 
-province_coordinates <- fortify(province_census_2016, 
-                        region="PRNAME")
+
 
 
 ```
@@ -200,27 +202,21 @@ stopifnot(nrow(failed_merging)==0 )
 
 
 
-## get label dataframe 
-```{r}
-# create a df with locations of labels (by default, at the mean latitude and longitude for the city/cma)
+## keep only metropolitan areas the census has data for 
+create a df with locations of labels (by default, at the mean latitude and longitude for the city/cma) 
+```{r filter_labels}
+# lee
 
-cma_labels = cma_coordinates %>% 
+cma_census_labels = cma_census_labels %>% 
   # keep only cities we have bilingual data on
-  filter(id %in% unique(cma_biling_data$id)) %>%
-
-  group_by(id) %>% 
-  summarize(
-  # y
-  long = mean(long), 
-  # x 
-  lat = mean(lat)) 
+  filter(id %in% unique(cma_biling_data$id)) 
 ```
 
 
 
 # Adjust label names, position
-This is where it would make more sense to just write the cma_labels df to a csv, edit the position of the labels & read them in, but I was in a rush and doing a hack job.
-```{r}
+
+```{r fix_labels}
 
 
 
@@ -230,7 +226,7 @@ GTA_cities = c("Brantford","Kitchener – Cambridge – Waterloo",  "Hamilton", 
 
 
 
-cma_labels_adj = cma_labels %>%
+cma_labels_clean = cma_census_labels %>%
   # create an new variable, so we can make a short area variable if needed (don't want the super long labels)
   rename(area_long_name = id) %>% 
   # clean up city label (short labels)
@@ -254,7 +250,7 @@ cma_labels_adj = cma_labels %>%
 
 # Plot Maps
 ## default Canada map without labels
-```{r}
+```{r prepare_map}
 plot_language = "English"
 
 legend_label = if_else(plot_language ==  "English",
@@ -295,7 +291,7 @@ geom_map(data = cma_biling_data ,
 
 ```
 ## show map & save
-```{r}
+```{r save_map}
 map_plot
 
 ggsave(here::here("03_output","01_figures","canada_map.png"), 
@@ -307,10 +303,10 @@ ggsave(here::here("03_output","01_figures","canada_map.png"),
 ## labels for biggest 10 cities (paper)
 Largest city in each province (-PEI, -NL) selected, then added additional cities by largest pop across Canada to get to 10
 
-```{r}
+```{r ten_cities}
 ten_cities_labels = c( "Calgary", "Edmonton",  "Halifax", "Vancouver", "Winnipeg", "Moncton", "Toronto", "Ottawa - Gatineau (Ontario part / partie de l'Ontario)", "Montréal", "Saskatoon")
 
-ten_cities_labels <- cma_labels_adj %>% 
+ten_cities_labels <- cma_labels_clean %>% 
   filter(area_long_name %in% ten_cities_labels)
 
 ten_cities_labels[ten_cities_labels$area_long_name == "Ottawa - Gatineau (Ontario part / partie de l'Ontario)", "city"] <- "Ottawa - Gatineau"
