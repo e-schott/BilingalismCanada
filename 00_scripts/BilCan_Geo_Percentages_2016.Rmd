@@ -46,74 +46,83 @@ library(tidylog)
 # process census language data
 ## load census language data
 ```{r read_census_data}
-idata_child = import(file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata"))
+idata = import(file = here::here("03_output","00_processed_data", "idata_preprocessed.Rdata"))
 age_groups_of_interest = c("0 to 4 years", "5 to 6 years", "7 to 9 years")
 
 
-child_0_4_data = idata_child %>%  filter(age_group == "0 to 4 years") 
 
 ```
 
-# look only at children 0-4
-## summarize census language data by area & province
-```{r summarize_census_data}
-(gma_LangGroup_data = child_0_4_data %>%
-  group_by(province,area,n_languages) %>%
-  summarize(N=n()) %>%
-    mutate( Percent = round(N/sum(N),2)) %>% 
-    filter(n_languages == "Two or more") ) %>%
-  ungroup
-    
-
-```
 ## table 1: detailed age breakdown
-### prep
+### narrow down age range to kids, select columns
 ```{r}
-data_table2 = idata_child %>%
+idata_child = idata %>%
+  # look only at children under 9
   filter(age_group %in% age_groups_of_interest) %>%
+  # collapse older age ranges into one
   mutate(age_collapsed = fct_collapse(age_group, 
                       "age_0_to_4" = "0 to 4 years",
                       "age_5_to_9" = c("5 to 6 years", "7 to 9 years"))) %>%
   select(province, area, age_group, age_collapsed, n_languages, lang_pair, sex, person_id)
 
 ```
+### remove missing data from dataframe
+For some children, there was no info on languages spoken, we remove those to avoid underestimating the % of bilinguals
+```{r}
+idata_child = idata_child %>%
+  filter(!is.na(n_languages))
+```
 
+
+
+## calculate totals, number of bilinguals, and %
+All of the following three sections (province, canada-wide, metropolitan area) work fundamentally the same, for three age groups (0-4, 5-9, 0-9) to create the final table for the paper.  
 ### province-wide
+#### 0-4 and 5-9
 
 xxx decide what to do with missing values
 ```{r}
 
 
 # calculate province-wide breakdown
-table_prov = data_table2 %>%
+table_prov = idata_child %>%
   group_by(province, age_collapsed) %>%
+  # get totals for province & age
   mutate(total_for_area_and_age = n()) %>% 
+  # group by # of languages too
   group_by(province, age_collapsed, total_for_area_and_age, n_languages) %>%
-  summarize(N=n()) %>% 
-    mutate( Percent = N/total_for_area_and_age)%>% 
-    filter(n_languages != "One Language")  %>%
+  # count numbers
+  summarize(N=n()) %>%
+  # calculate percent
+  mutate( Percent = N/total_for_area_and_age)%>% 
+  # actually we only care about Two or more languages
+  filter(n_languages != "One Language")  %>%
   select(-n_languages) %>%
   rename(N_bilingual = N) %>%
+  # necessary for merging with area-level data
   mutate(area = "") %>%
   ungroup()
 
-# convert to wide data for displaying in paper
+# convert to wide data for convenience
+# shows numbers and % next to each other
 table_prov_wide = table_prov %>% 
   select(-total_for_area_and_age) %>%
   pivot_wider(names_from = age_collapsed, 
               values_from = c(Percent, N_bilingual))
 ```
-### province-wide combined across ages
+#### age 0-9
 ```{r}
 table_prov_0_9 = table_prov %>% 
   group_by(province) %>%
   summarise(Percent_age_0_to_9 = sum(N_bilingual)/sum(total_for_area_and_age))
  
 ```
-### combine province-wide data
+#### combine separate age groups and age 0-9
 ```{r}
 
-table_prov_combined = table_prov_wide %>% select(-starts_with("N_biling")) %>%
+table_prov_combined = table_prov_wide %>%
+  # don't need the actual numbers here, just %
+  select(-starts_with("N_biling")) %>%
   full_join(table_prov_0_9)
 ```
 
@@ -123,26 +132,33 @@ table_prov_combined = table_prov_wide %>% select(-starts_with("N_biling")) %>%
 #### by age subgroup & combined
 ```{r}
 
-
-
 # calculate bilingualism % for all of Canada, to merge into table later
 total_across_canada = table_prov %>%
+  # combine numbers from all provinces into one
   group_by( age_collapsed) %>%
+  # calculate number of children & number of bilingual children
   summarize(total= sum(total_for_area_and_age),
             N_bilingual = sum(N_bilingual)) %>% # need this intermediate step to be able to calculate combined column 0-9
+  # calculate percent, add column to signfiy this is canada-wide data
   mutate(Percent = N_bilingual/total,
          country = "Canada") %>% 
+  # create wide dataframe for paper
   pivot_wider(names_from = "age_collapsed", values_from = c("total", "N_bilingual", "Percent")) %>% # to be able to add a column on 0 to 9
+  # calculate percent for 0-9
   mutate(Percent_age_0_to_9 = sum(N_bilingual_age_0_to_4, N_bilingual_age_5_to_9)/
           sum(total_age_0_to_4, total_age_5_to_9) ) # combined across ages
 ```
-
-
-### detailed area breakdown
-#### separately for each age group
+#### keep just relevant columns for paper
 ```{r}
-table_city_by_age_subgroup = data_table2 %>% 
-  # remove provinces that don't have data on specific areas
+table_canada = total_across_canada %>% select(-starts_with("total"), -starts_with("N_bili")) 
+```
+
+
+### by metropolitan area 
+#### 0-4 and 5-9
+```{r}
+table_city_by_age_subgroup = idata_child %>% 
+  # remove provinces that don't have metropolitan areas in census
   filter(!province %in% c("Newfoundland and Labrador", "Prince Edward Island", "Northern Canada")) %>%
   group_by(province, age_collapsed, area) %>%
   mutate(total = n()) %>% 
@@ -161,11 +177,12 @@ table_city_by_age_subgroup = data_table2 %>%
 #### convert to wide dataset
 ```{r}
 table_city_wide = table_city_by_age_subgroup %>%
+  # remove totals so they don't confuse pivot_wider
   select(-total) %>%
   pivot_wider(names_from = "age_collapsed", values_from = c("N_bilingual", "Percent"))
 ```
 
-#### for 0-9 yo
+#### age 0-9
 ```{r}
 table_city_0_9 = table_city_by_age_subgroup %>% 
   group_by(province, area) %>%
@@ -177,22 +194,27 @@ table_city_full= table_city_0_9 %>% full_join(table_city_wide) %>% select(-start
 ```
 
 
-### combine all tables for canada, provinces, areas
+### merge all tables for canada, provinces, areas
 
 ```{r}
-combined_table = total_across_canada %>% select(-starts_with("total"), -starts_with("N_bili")) %>%
+combined_table = table_canada %>%
   full_join( table_city_full) %>%
   full_join(table_prov_combined) %>% 
   arrange(country,province, area) %>% 
+  # convert all percent numbers to percent
   mutate_at(vars(starts_with("Percent")), ~round(.,3)*100)
 
 
+
+```
+## save data as csv for paper
+```{r}
 rio::export(combined_table, file = here("03_output/02_tables/Table1_bilingualism_rates.csv"))
 ```
 
 
 ## save geographical  data for maps
-this is for creating a map where the area of the province represent the bilingual % in all non-gma areas (e.g., quebec without montreal, quebec city, trois rivieres, etc..) or for provinces where there are no gmas (e.g., PEI) the bilingual % for the entire province.
+for the plot_map script
 ```{r}
 
 
@@ -202,36 +224,21 @@ export(combined_table %>% filter(is.na(country)), here("03_output", "00_processe
 
 
 ```
-# check rankings
+# look at by-province rankings
+for results section in paper
 ```{r}
 table_prov_combined %>%  
+  select(-area) %>%
+  # round all numbers & convert to % for easier visibility
+  mutate_at(vars(starts_with("Percent")), ~round(.,3)*100) %>% 
+ # rank for 0-4 and 0-9
   mutate(rank_0_4 = rank(-Percent_age_0_to_4),
          rank_0_9 = rank(-Percent_age_0_to_9)) %>% 
-  mutate_at(vars(starts_with("Percent")), ~round(.,3)*100) %>% 
-  arrange(rank_0_9) %>% View(  )
+  # arrange by 0-9 so discrepancies are more easily visible
+  arrange(rank_0_9)
 ```
 
 
-
-## save data for poster table
-xx need to figure out which of this stuff is still necessary!
-```{r}
-
-# 
-# table_poster = table_prov %>% full_join(table_city %>% 
-#   rename( Percent = Percent_city))  %>% 
-#   full_join(table_otherCMA) %>%
-#   select(province, area,total, N, Percent) %>%
-#   arrange(province)
-# write.csv(table_poster, file=here("03_output","02_tables","Table_idata_by_area_0_to_4.csv"),row.names = F)
-```
-
-# map data children 0-9
-```{r}
-table(idata_child$age_group)
-child_0_9_data = idata_child %>%
-  filter(age_group %in% c("0 to 4 years", "5 to 6 years", "7 to 9 years"))
-```
 
 
 
