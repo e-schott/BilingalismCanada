@@ -11,9 +11,6 @@ output: html_document
 library(here)
 library(tidyverse)
 library(rio)
-# library(labelled)
-# library(janitor)
-# library(scales)
 library(arm)
 library(boot)
 library(mice)
@@ -29,7 +26,7 @@ hhdata_child_only = import(here::here("03_output","00_processed_data", "hhdata_c
 
 # exploratory data visualization - # of bilingual children by
 
-## bilingal adults in household
+## bilingal adults in household (HH)
 
 ```{r}
 # number of bilingual children by number of bilingual adults in HH (HH without biling adults removed, so more detail can be seen)
@@ -126,7 +123,7 @@ ggplot(hhdata_child_only, aes(x = income_quintile, fill = N_languages_person)) +
 
 # exploratory descriptive calculations
 
-## bilingal adults in household
+## number of bilingual kids by bilingual adults in household
 
 ```{r}
 
@@ -259,9 +256,10 @@ biling_by_income <- hhdata_child_only %>%
 
 # MODELS** 
 
-## prep data - select and transform relevant variables
+## prep data 
 
 ```{r}
+# select and transform relevant variables
 hhdata_model <- hhdata_child_only %>% 
   dplyr::select(person_id, household_id, N_languages_person, province, n_biling_adults_group, highest_ed, income_quintile, immigration_generation) %>% 
   mutate(N_languages_person = as.factor(N_languages_person),
@@ -276,22 +274,28 @@ hhdata_model <- hhdata_child_only %>%
 ## allows for comparison of mean of given level to mean of previous level; level 1 as intercept
 
 ## manually create contrast matrices
+
+### used for number of bilingual adults (for only bilingually exposed children)
 contr_diff_3 <- matrix(c(-2/3, 1/3, 1/3, -1/3, -1/3, 2/3), ncol = 2)
 
+### used for number of bilingual adults, immigration generation
 contr_diff_4  <-  matrix(c(-3/4, 1/4, 1/4, 1/4, -1/2, -1/2, 1/2, 1/2, -1/4, -1/4, -1/4, 3/4), ncol = 3)
 
+### used for parents' highest education, income quintile
 contr_diff_5 <- matrix(c(-4/5, 1/5, 1/5, 1/5, 1/5, -3/5, -3/5, 2/5, 2/5, 2/5, -2/5, -2/5, -2/5, 3/5, 3/5, -1/5, -1/5, -1/5, -1/5, 4/5), ncol = 4)
 
+## assign contrasts
 contrasts(hhdata_model$n_biling_adults_group) <- contr_diff_4
 contrasts(hhdata_model$highest_ed) <- contr_diff_5
 contrasts(hhdata_model$income_quintile) <- contr_diff_5
 contrasts(hhdata_model$immigration_generation) <- contr_diff_4
 
-# filter for only quebec data
+
+# filter for only quebec data - NOT USED IN ANALYSES REPORTED IN PAPER
 hhdata_model_quebec <- hhdata_model %>% 
   filter(province == "Quebec")
 
-# filter for Rest of Canada data  
+# filter for Rest of Canada data - NOT USED IN ANALYSES REPORTED IN PAPER
 hhdata_model_roc <- hhdata_model %>% 
   filter(province != "Quebec")
 
@@ -304,16 +308,16 @@ hhdata_model_exp <- hhdata_model %>%
 
 contrasts(hhdata_model_exp$n_biling_adults_group) <- contr_diff_3
 
-# filter for only quebec data
+# filter for only quebec data - NOT USED IN ANALYSES REPORTED IN PAPER
 hhdata_model_quebec_exp <- hhdata_model_exp %>% 
   filter(province == "Quebec")
 
-# filter for Rest of Canada data  
+# filter for Rest of Canada data - NOT USED IN ANALYSES REPORTED IN PAPER
 hhdata_model_roc_exp <- hhdata_model_exp %>% 
   filter(province != "Quebec")
 ```
 
-## All of Canada model
+## *All of Canada model - Model reported in paper
 
 ```{r}
 m_all <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model, family = "binomial")
@@ -321,41 +325,35 @@ m_all <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile
 summary(m_all)
 
 
-## interpreting summaries for sum coding - coefficients are difference between level and GRAND MEAN, last level of each predictor not included in model
-
-
-# model for only those children who have at least 1 bilingual adult
+# model for bilingually-exposed children (those who have at least 1 bilingual adult in HH)
 
 m_exp <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_exp, family = "binomial")
 
 summary(m_exp)
 ```
 
-## Rest of Canada model
+## Rest of Canada model - NOT USED IN ANALYSES REPORTED IN PAPER
 
 ```{r}
 m_roc_all <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_roc, family = "binomial")
 
 summary(m_roc_all)
 
-## interpreting summaries for sum coding - coefficients are difference between level and GRAND MEAN, last level of each predictor not included in model
-
-
-# model for only those children who have at least 1 bilingual adult
+# model for only bilingually-exposed children 
 
 m_roc_exp <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_roc_exp, family = "binomial")
 
 summary(m_roc_exp)
 ```
 
-## Quebec model
+## Quebec model - NOT USED IN ANALYSES REPORTED IN PAPER
 
 ```{r}
 m_quebec_all <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_quebec, family = "binomial")
 
 summary(m_quebec_all)
 
-# model for only those children who have at least 1 bilingual adult
+# model for only bilingually-exposed children 
 
 m_quebec_exp <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_quebec_exp, family = "binomial")
 
@@ -365,6 +363,9 @@ summary(m_quebec_exp)
 ## Model Criticism
 
 ```{r}
+
+# Model crticism not reported in paper
+
 # # function
 # lrAcc <- function(lrMod, responseVar, use.ranef=TRUE){
 #   if(!is.factor(model.frame(lrMod)[,responseVar])){ model.frame(lrMod)[,responseVar] <- as.factor(model.frame(lrMod)[,responseVar]) }
@@ -427,7 +428,7 @@ ggplot(aes(x=cooksDistance), data=quebec_exp_cooks) +
   geom_histogram()
 ```
 
-## predicted probabilities from model
+## *Predicted probabilities from model - reported in paper as Table 4
 
 ```{r}
 # function to convert logit space to probabilities
@@ -528,7 +529,7 @@ quebec_all_prob <- prob_pred(quebec_all)
 quebec_exp_prob <- prob_pred(quebec_exp)
 ```
 
-## actual percentages from data
+## *Actual percentages from data - reported in paper as Table 3
 
 ```{r}
 # get the actual percentage of bilingual kids at each predictor level
