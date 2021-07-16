@@ -18,7 +18,7 @@ use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (
 ```
 
 ## load packages
-```{r libraries echo=FALSE}
+```{r libraries, echo=FALSE}
 library(here)
 library(tidyverse)
 library(tidylog)
