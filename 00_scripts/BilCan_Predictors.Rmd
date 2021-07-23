@@ -270,7 +270,7 @@ hhdata_model <- hhdata_child_only %>%
            N_languages_person == "Two or more" ~ 1
          )) 
 
-# reverse difference code variables
+# reverse difference code variables #HK note: the info on this page seems to call this kind of coding "Backward Difference Coding" https://stats.idre.ucla.edu/r/library/r-library-contrast-coding-systems-for-categorical-variables/#backward
 ## allows for comparison of mean of given level to mean of previous level; level 1 as intercept
 
 ## manually create contrast matrices
