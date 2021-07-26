@@ -368,11 +368,11 @@ adults_edu <- hhdata_child_adult %>%
 ```
 
 
-## create df for only children (for predictor analysis)
+## create df for children only (for predictor analysis)
 
 ```{r}
 hhdata_child_only <- hhdata_child %>% 
-  # filter for only children
+  # filter for children only #HK note: "only child" is a term that means specifically that there is only 1 child in a household (so if you are an only child, you have no siblings). So just for clarity (because I was confused!) I changed to "children only"
   filter(child0_9 == 1) %>% 
   # join with # of bilingual adults
   left_join(adults_n, by = "household_id") %>% 

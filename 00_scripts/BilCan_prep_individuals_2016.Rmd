@@ -159,10 +159,10 @@ idata = idata %>%
     # if it is a catch-all category, get rid of " languages" to have just "AustroAsiatic", for convenience
     str_detect(lang_most_oth_write_in, "languages")  ~ sub(" languages", "", lang_most_oth_write_in),
      # whenever there is additional info in brackets, remove
-    TRUE ~  sub(" \\(.*", "", lang_most_oth_write_in)
+    TRUE ~  sub(" \\(.*", "", lang_most_oth_write_in) #HK: this step is removing "(Farsi)", but the next step removes "Persian", so this language is getting erased
   ),
   # remove additional names for languages
-  lang_most_oth_name = str_remove(lang_most_oth_name, "Persian|Panjabi|PilipinoFilipino")
+  lang_most_oth_name = str_remove(lang_most_oth_name, "Panjabi|PilipinoFilipino") #HK removed "Persian" from here to retain this language
 
   )
 
@@ -387,7 +387,7 @@ idata_child %>% group_by(area) %>%
    spread(n_languages, N) %>%
    clean_names() %>%
    mutate(total = one_language+two_or_more, 
-          percent = round(two_or_more/total,5)*100))
+          percent = round(two_or_more/total,5)*100)) #HK note: here the percent doesn't use NA in the denominator, but below on line 395, it does. Is this on purpose?
 
 
 # canada 0-9 
