@@ -159,11 +159,10 @@ idata = idata %>%
     # if it is a catch-all category, get rid of " languages" to have just "AustroAsiatic", for convenience
     str_detect(lang_most_oth_write_in, "languages")  ~ sub(" languages", "", lang_most_oth_write_in),
      # whenever there is additional info in brackets, remove
-    TRUE ~  sub(" \\(.*", "", lang_most_oth_write_in) #HK: this step is removing "(Farsi)", but the next step removes "Persian", so this language is getting erased
+    TRUE ~  sub(" \\(.*", "", lang_most_oth_write_in) 
   ),
   # remove additional names for languages
-  lang_most_oth_name = str_remove(lang_most_oth_name, "Panjabi|PilipinoFilipino") #HK removed "Persian" from here to retain this language
-
+  lang_most_oth_name = str_remove(lang_most_oth_name, "Panjabi|PilipinoFilipino") 
   )
 
 # clean up naming convention to camel case to make it easier to paste and combine later (spaces are removed)
@@ -372,28 +371,7 @@ idata_child %>% group_by(area) %>%
 # top metropolitain areas are: Toronto, Montréal, Vancouver Calgary, Ottawa - Gatineau, Edmonton (cutoff could be 5000 individuals?)
 
 ```
-## bilingualism in children in individuals dataset
-#### summary table: bilingual children across canada
 
-```{r}
- (canada_percent = idata %>% 
-  mutate(country = "Canada",
-    age_collapsed = fct_collapse(age_group, 
-                      "age_0_to_4" = "0 to 4 years",
-                      "age_5_to_9" = c("5 to 6 years", "7 to 9 years"))) %>%
-  filter(age_collapsed %in% c("age_0_to_4", "age_5_to_9")) %>%
-   group_by(country, age_collapsed, n_languages) %>%
-   summarize(N=n()) %>%
-   spread(n_languages, N) %>%
-   clean_names() %>%
-   mutate(total = one_language+two_or_more, 
-          percent = round(two_or_more/total,5)*100)) #HK note: here the percent doesn't use NA in the denominator, but below on line 395, it does. Is this on purpose?
-
-
-# canada 0-9 
-canada_percent %>% group_by(country) %>%
-  summarize(percent = sum(two_or_more)/sum(total+na))
-```
 
 
 
