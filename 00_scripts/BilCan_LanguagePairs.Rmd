@@ -270,7 +270,7 @@ full_table = full_table %>%
 ## write table to csv
 ```{r}
 full_table %>%
-  write_csv(here("03_output", "02_tables", "language_pairs_by_province.csv"))
+  write_csv(here("03_output", "02_tables", "Table2_language_pairs_by_province.csv"))
 
 ```
 
