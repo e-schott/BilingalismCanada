@@ -1,7 +1,8 @@
-# "The youngest bilingual Canadians: Insights from the 2016 Census about children aged 0-4"
+# "The youngest bilingual Canadians: Insights from the 2016 Census about children aged 0-9"
 
 
-This is the code for the census-based analysis of the number of bilingual children in Canada. You can find the associated OSF project at: https://osf.io/2gzfw/
+This is the code for the census-based analysis of the number of bilingual children in Canada. You can find the associated OSF project at: https://osf.io/2gzfw/?view_only=6bb3c29473f44a9fb4da211582573f2d
+
 
 ## Repository Overview
 
