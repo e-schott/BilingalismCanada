@@ -202,7 +202,8 @@ combined_table = table_canada %>%
   full_join(table_prov_combined) %>% 
   arrange(country,province, area) %>% 
   # convert all percent numbers to percent
-  mutate_at(vars(starts_with("Percent")), ~round(.,3)*100)
+  mutate_at(vars(starts_with("Percent")), ~round(.,3)*100) %>%
+  relocate(c(province, area), .after = country)
 
 
 
