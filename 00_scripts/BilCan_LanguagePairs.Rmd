@@ -249,8 +249,7 @@ full_table = full_table %>%
   mutate( other_flag = str_detect(language_pair, "Other")) %>%
   filter(other_flag != TRUE) %>% 
   # exclude language combos that appear very rarely
-  filter(percent_bilingual_children_age_0_to_9 >= 4|
-         country == "Canada" & percent_bilingual_children_age_0_to_9 >= 3) %>% 
+  filter(percent_all_children_age_0_to_9 > .5) %>% 
   select(-other_flag) %>%
   arrange(province, -percent_bilingual_children_age_0_to_9) %>%
     # fix language pair names
