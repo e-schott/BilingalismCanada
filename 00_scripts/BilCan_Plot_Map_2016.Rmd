@@ -311,16 +311,25 @@ ten_cities_labels <- cma_labels_clean %>%
 
 ten_cities_labels[ten_cities_labels$area_long_name == "Ottawa - Gatineau (Ontario part / partie de l'Ontario)", "city"] <- "Ottawa - Gatineau"
 
+#ggrepel was putting some labels in strange places, so manually create label for Ottawa
+ottawa_label <- data.frame(
+   x = 7200000,
+   y = 1520000,
+   label = "Ottawa - Gatineau"
+)
+
 map_plot + 
-geom_label_repel(data = ten_cities_labels,
+geom_label_repel(data = filter(ten_cities_labels, city != "Ottawa - Gatineau"),
                  aes(x= long, y= lat, label = city),
                  size          = 3,
                  segment.size  = 1,
-                 segment.color = "grey50",
+                 segment.color = "gray50",
                  direction     = "both",
-                 vjust         = 1)
-  
- ggsave(here::here("03_output","01_figures","ten_cities_labels.png"), width = 9, height =7)
+                 vjust         = 1) +
+  annotate("segment", x = 7200000, xend = 7474536, y = 1505000, yend = 1179830.6,  colour = "gray50") +
+  geom_label(data = ottawa_label, aes(x = x, y = y, label = label), size = 3)
+
+ggsave(here::here("03_output","01_figures","ten_cities_labels.png"), width = 9, height =7)
 
 ```
 
