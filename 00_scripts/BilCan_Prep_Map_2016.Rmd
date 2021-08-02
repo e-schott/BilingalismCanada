@@ -81,7 +81,7 @@ canada_census_2016_cma <- readOGR(dsn = here("02_map_data","census_map_2016",
 ### other steps
 ```{r}
 canada_census_2016_cma = ms_simplify(canada_census_2016_cma, sys = TRUE, keep= .1) #HK note: I was stuck here for a while, even after downloading everything. I had to restart RStudio to get it to work, so it could be worth some explanatory code here for getting everything to work together.
-
+# LK Note: Same as Hilary. Also didn't know I had to go through the command prompt, so that took a while
 
 
 
