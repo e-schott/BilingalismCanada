@@ -272,6 +272,56 @@ full_table %>%
   write_csv(here("03_output", "02_tables", "Table2_language_pairs_by_province.csv"))
 
 ```
+# census agglomerations
+```{r}
+lang_pair_by_area_and_age_long  = 
+  lang_pair_data %>% 
+  filter(age_group %in% age_groups_of_interest) %>%
+  droplevels() %>%
+  group_by(province, area, age_collapsed) %>% 
+  count(language_pair) #%>% 
+  left_join(n_children_by_age) %>% # how how many children per age group
+  mutate(n_bilingual_children = sum(n),
+    percent_bilingual_children = round(n/n_bilingual_children*100,1), # add percent
+    percent_all_children = round(n/total_by_age*100,1)) %>% 
+  ungroup()
+  
+  
+lang_pair_by_area_and_age_long  = 
+  lang_pair_data %>% 
+  filter(age_group %in% age_groups_of_interest) %>%
+  droplevels() %>%
+  tabyl(language_pair, age_group, area) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 1)
+
+lang_pair_by_area_and_age_long = 
+  Map(cbind, lang_pair_by_area_and_age_long, area = names(lang_pair_by_area_and_age_long)) %>%
+ bind_rows(.id = "area")
+
+
+lang_pair_by_area_and_age_long %>%
+  arrange(area, desc(`0 to 4 years`)) %>%
+  group_by(area) %>%
+  top_n(10)
+  
+    adorn_totals(where = "col") %>%
+
+adorn_totals(where = "row") 
+
+  adorn_totals(c("col")) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  arrange(Totals)
+
+#%>% 
+  left_join(n_children_by_age) %>% # how how many children per age group
+  mutate(n_bilingual_children = sum(n),
+    percent_bilingual_children = round(n/n_bilingual_children*100,1), # add percent
+    percent_all_children = round(n/total_by_age*100,1)) %>% 
+  ungroup()
+```
+
 
 # the end
 ```{r}
