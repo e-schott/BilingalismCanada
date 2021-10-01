@@ -231,9 +231,9 @@ cma_labels_clean = cma_census_labels %>%
   rename(area_long_name = id) %>% 
   # clean up city label (short labels)
   mutate(city = ifelse(area_long_name == "Ottawa – Gatineau", "Ottawa", area_long_name ),
-         # adjust the position of Toronto, Edmonton, Calgary, Ottawa
+         # adjust the position of Toronto, , Ottawa
        long_adj = case_when(
-    city %in% c("Toronto", "Edmonton","Calgary", "Ottawa")~ long + 100000,
+    city %in% c("Toronto", "Ottawa")~ long + 100000,
     TRUE ~ long),
     # move label for vancouver a bit around for optimum position
     lat_adj  = ifelse(city == "Vancouver", lat - 150000, lat),
@@ -254,31 +254,32 @@ cma_labels_clean = cma_census_labels %>%
 plot_language = "English"
 
 legend_label = if_else(plot_language ==  "English",
-                       "home bilingualism \namongst children",
+                       "Rates of child\nhome bilingualism",
                        "Pourcentage des \nenfants \nbilingues")
 
 
 
 map_plot =  ggplot() + 
   # draw province map
-  geom_map(data = province_data , 
+  geom_map(data = province_data %>% add_row(Percent_age_0_to_9 = 0), 
            map = province_coordinates,
            aes(map_id = id, 
-               fill = Percent_age_0_to_9),
+               fill = Percent_age_0_to_9/100),
            color="white", 
            size=0.1)+ 
-  # draw metropolitain areas overlaid
-geom_map(data = cma_biling_data , 
+  # draw metropolitan areas overlaid
+geom_map(data = cma_biling_data %>% add_row(Percent_age_0_to_9 = 0) , 
          map = cma_coordinates,
          aes(map_id = id,
            #  group = group, 
-            fill = Percent_age_0_to_9),
+            fill = Percent_age_0_to_9/100),
          color = "white", 
          size = 0.05)+ 
-     scale_fill_viridis(option = "D", 
-                      labels = scales::percent_format(accuracy=1), 
-                      name=legend_label, 
-                      breaks = seq(0.0,0.25, by = .05))+
+      scale_fill_viridis(option = "D", begin = 0,
+                       labels = scales::percent_format(accuracy=1), 
+                       name=legend_label, 
+                       breaks = seq(0.0,0.35, by = 0.1)
+                       )+
 
   # define limits for the plot (since province_coordinates and canada_map_areas uses same scale, can use either one...)
   expand_limits(x = province_coordinates$long, 
@@ -305,7 +306,7 @@ Largest city in each province (-PEI, -NL) selected, then added additional cities
 
 ```{r ten_cities}
 ten_cities_labels = c( "Calgary", "Edmonton",  "Halifax", "Vancouver", "Winnipeg", "Moncton", "Toronto", "Ottawa - Gatineau (Ontario part / partie de l'Ontario)", "Montréal", "Saskatoon")
-
+set.seed(1)
 ten_cities_labels <- cma_labels_clean %>% 
   filter(area_long_name %in% ten_cities_labels)
 
@@ -319,15 +320,15 @@ ottawa_label <- data.frame(
 )
 
 map_plot + 
-geom_label_repel(data = filter(ten_cities_labels, city != "Ottawa - Gatineau"),
+geom_label_repel(data = filter(ten_cities_labels),
                  aes(x= long, y= lat, label = city),
                  size          = 3,
                  segment.size  = 1,
                  segment.color = "gray50",
                  direction     = "both",
-                 vjust         = 1) +
-  annotate("segment", x = 7200000, xend = 7474536, y = 1505000, yend = 1179830.6,  colour = "gray50") +
-  geom_label(data = ottawa_label, aes(x = x, y = y, label = label), size = 3)
+                 vjust         = 1) #+
+  annotate("segment", x = 7200000, xend = 7474536, y = 1505000, yend = 1179830.6,  colour = "gray50")# +
+#  geom_label(data = ottawa_label, aes(x = x, y = y, label = label), size = 3)
 
 ggsave(here::here("03_output","01_figures","ten_cities_labels.png"), width = 9, height =7)
 
