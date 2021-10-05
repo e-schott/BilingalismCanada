@@ -1,23 +1,23 @@
-Characteristic,All children,Bilingually-exposed children
-Number of bilingual adults in the household,NA,NA
-None,2.57,NA
-One Adult,43.72,43.72
-Two Adults,63.21,63.21
-Three or More Adults,63.77,63.77
-Highest level of parental education,NA,NA
-No high school diploma,16.86,56.66
-High school diploma,13.74,54.18
-Post-secondary diploma,12.19,53.93
-Bachelor's degree,18.7,56.65
-Graduate degree,27.01,61.33
-Income quintile,NA,NA
-In first quintile,22.42,62.35
-In second quintile,18.85,57.39
-In third quintile,16.25,54.97
-In fourth quintile,14.75,53.44
-In fifth quintile,14.76,52.47
-Immigration generation,NA,NA
-"First generation, respondent born outside Canada",47.7,73.62
-"Second generation, respondent born in Canada, both parents b",44.95,61.54
-"Second generation, respondent born in Canada, one parent bor",20.21,48.73
-"Third generation or more, respondent born in Canada, both pa",6.67,48.68
+Characteristic,All children,Bilingually-exposed children (All),Bilingually-exposed children (English-French),Bilingually-exposed children (Other language pairs)
+Number of bilingual adults in the household,NA,NA,NA,NA
+None,2.57,NA,NA,NA
+One Adult,43.72,43.72,49.72,39.85
+Two Adults,63.21,63.21,66.31,62.31
+Three or More Adults,63.77,63.77,69.44,63.41
+Highest level of parental education,NA,NA,NA,NA
+No high school diploma,16.86,56.66,38.46,59.79
+High school diploma,13.74,54.18,47.98,55.79
+Post-secondary diploma,12.19,53.93,57.62,51.91
+Bachelor's degree,18.7,56.65,59.35,55.54
+Graduate degree,27.01,61.33,64.38,60.26
+Income quintile,NA,NA,NA,NA
+In first quintile,22.42,62.35,52.53,64.31
+In second quintile,18.85,57.39,56.69,57.59
+In third quintile,16.25,54.97,57.35,53.92
+In fourth quintile,14.75,53.44,58.65,50.33
+In fifth quintile,14.76,52.47,62.45,45.75
+Immigration generation,NA,NA,NA,NA
+"First generation, respondent born outside Canada",47.7,73.62,80.88,73.05
+"Second generation, respondent born in Canada, both parents b",44.95,61.54,71.63,60.74
+"Second generation, respondent born in Canada, one parent bor",20.21,48.73,68.33,41.77
+"Third generation or more, respondent born in Canada, both pa",6.67,48.68,53.83,38.47

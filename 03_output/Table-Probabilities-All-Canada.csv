@@ -1,23 +1,23 @@
-Characteristic,All children,Bilingually-exposed children
-Number of bilingual adults in the household,NA,NA
-None,0.04,NA
-One Adult,0.52,0.46
-Two Adults,0.62,0.62
-Three or More Adults,0.61,0.64
-Highest level of parental education,NA,NA
-No high school diploma,0.44,0.51
-High school diploma,0.44,0.56
-Post-secondary diploma,0.44,0.58
-Bachelor's degree,0.45,0.59
-Graduate degree,0.47,0.62
-Income quintile,NA,NA
-In first quintile,0.47,0.62
-In second quintile,0.44,0.58
-In third quintile,0.44,0.56
-In fourth quintile,0.43,0.56
-In fifth quintile,0.45,0.55
-Immigration generation,NA,NA
-"First generation, respondent born outside Canada",0.58,0.68
-"Second generation, respondent born in Canada, both parents b",0.49,0.57
-"Second generation, respondent born in Canada, one parent bor",0.39,0.53
-"Third generation or more, respondent born in Canada, both pa",0.32,0.51
+Characteristic,All children,Bilingually-exposed children (All),Bilingually-exposed children (English-French),Bilingually-exposed children (Other language pairs)
+Number of bilingual adults in the household,NA,NA,NA,NA
+None,0.04,NA,NA,NA
+One Adult,0.52,0.46,0.57,0.41
+Two Adults,0.62,0.62,0.69,0.58
+Three or More Adults,0.61,0.64,0.77,0.61
+Highest level of parental education,NA,NA,NA,NA
+No high school diploma,0.44,0.51,0.5,0.51
+High school diploma,0.44,0.56,0.68,0.52
+Post-secondary diploma,0.44,0.58,0.74,0.51
+Bachelor's degree,0.45,0.59,0.73,0.54
+Graduate degree,0.47,0.62,0.73,0.58
+Income quintile,NA,NA,NA,NA
+In first quintile,0.47,0.62,0.66,0.61
+In second quintile,0.44,0.58,0.68,0.54
+In third quintile,0.44,0.56,0.68,0.51
+In fourth quintile,0.43,0.56,0.67,0.52
+In fifth quintile,0.45,0.55,0.71,0.48
+Immigration generation,NA,NA,NA,NA
+"First generation, respondent born outside Canada",0.58,0.68,0.79,0.67
+"Second generation, respondent born in Canada, both parents b",0.49,0.57,0.71,0.56
+"Second generation, respondent born in Canada, one parent bor",0.39,0.53,0.68,0.48
+"Third generation or more, respondent born in Canada, both pa",0.32,0.51,0.53,0.42

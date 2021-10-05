@@ -11,7 +11,7 @@ see poster created from a previous version of this script: https://osf.io/4gekn/
 # Preparation Steps
 ## Script settings
 ```{r settings}
-load_data_from_raw = TRUE # If true, loads data from .sav, else loads R file (faster)
+load_data_from_raw = FALSE # If true, loads data from .sav, else loads R file (faster)
 # needs to be loaded from raw the first time you execute this script on a new computer! 
 
 use_reduced_data_set = FALSE # If true, uses a smaller subset of full data set (for troubleshooting etc.)
@@ -293,27 +293,58 @@ adults_n <- hhdata_child_adult %>%
 
 # get language (pairs) and number of speakers per household
 adults_lang <- hhdata_child_adult %>% 
-  group_by(household_id, lang_pair_ordered) %>% 
+  group_by(household_id, lang_pair) %>% 
   summarize(n_lang_pair = n())
+
+# get number of languages per household
+adults_lang_n <- hhdata_child_adult %>% 
+  select(household_id, lang1:lang4) %>% 
+  pivot_longer(lang1:lang4, names_to = "lang_number", values_to = "lang_name") %>% 
+  filter(!is.na(lang_name)) %>% 
+  group_by(household_id) %>% 
+  summarize(lang_n_hh = n_distinct(lang_name))
+
 
 # get number of bilingual adults per household
 adults_biling_n <- adults_lang %>% 
-  filter(str_detect(lang_pair_ordered, "&")) %>% 
+  filter(str_detect(lang_pair, "&")) %>% 
   group_by(household_id) %>% 
   summarize(n_biling_adults = sum(n_lang_pair)) 
 
 # get number of monolingual adults per household
 adults_monoling_n <- adults_lang %>% 
-  filter(!str_detect(lang_pair_ordered, "&")) %>% 
-  mutate(lang_pair_ordered = na_if(lang_pair_ordered, "NA")) %>% 
-  filter(!is.na(lang_pair_ordered)) %>% 
+  filter(!str_detect(lang_pair, "&")) %>% 
+  mutate(lang_pair = na_if(lang_pair, "NA")) %>% 
+  filter(!is.na(lang_pair)) %>% 
   group_by(household_id) %>% 
   summarize(n_monoling_adults = sum(n_lang_pair))
+
+
+# get languages per household
+adults_lang_hh <- hhdata_child_adult %>% 
+  select(household_id, lang_pair) %>% 
+  separate(lang_pair, into = c("lang1", "lang2", "lang3", "lang4"), sep = "&", remove = FALSE) %>% 
+  pivot_longer(lang1:lang4, names_to = "lang_n", values_to = "lang_spoken", values_drop_na = TRUE) %>% 
+  group_by(household_id, lang_spoken) %>%
+  summarize(lang_hold = n()) %>% 
+  select(-lang_hold) 
+
+# identify households with both French and English spoken
+eng_hh <- adults_lang_hh %>% 
+  filter(lang_spoken == "English")
+
+fr_hh <- adults_lang_hh %>% 
+  filter(lang_spoken == "French")
+
+eng_fr_hh <- eng_hh %>% 
+  filter(household_id %in% fr_hh$household_id) %>% 
+  select(household_id)
 
 # combine info on adults' language
 adults_n <- adults_n %>% 
   left_join(adults_biling_n, by = "household_id") %>% 
   left_join(adults_monoling_n, by = "household_id") %>% 
+  left_join(adults_lang_n, by = "household_id") %>% 
   # add values in if we know there are no reported bilingual adults in the HH
   mutate(n_biling_adults = case_when(
     n_adults - n_monoling_adults == 0 ~ 0,
@@ -325,15 +356,17 @@ adults_n <- adults_n %>%
            n_biling_adults == 2 ~ "Two Adults",
            n_biling_adults > 2 ~ "Three or More Adults"
           )) %>% 
-  mutate(n_biling_adults_group = as.factor(n_biling_adults_group)) 
+  mutate(n_biling_adults_group = as.factor(n_biling_adults_group)) %>% 
+  #add true/false column for Fr-Eng biling exposure
+  mutate(fr_eng = case_when(
+    household_id %in% eng_fr_hh$household_id ~ TRUE,
+    TRUE ~ FALSE
+    ))
 
 adults_n$n_biling_adults_group <- factor(adults_n$n_biling_adults_group, levels = c("None", "One Adult", "Two Adults", "Three or More Adults"))
 
-
-
-
-
 ```
+
 ## clean up education variable
 currently 8 factor levels. want to change to 5 to match Turcotte analyses. merging post-secondary levels together
 ```{r}

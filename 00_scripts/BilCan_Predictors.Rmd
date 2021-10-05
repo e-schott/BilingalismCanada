@@ -261,7 +261,7 @@ biling_by_income <- hhdata_child_only %>%
 ```{r}
 # select and transform relevant variables
 hhdata_model <- hhdata_child_only %>% 
-  dplyr::select(person_id, household_id, N_languages_person, province, n_biling_adults_group, highest_ed, income_quintile, immigration_generation) %>% 
+  dplyr::select(person_id, household_id, N_languages_person, province, n_biling_adults_group, highest_ed, income_quintile, immigration_generation, fr_eng) %>% 
   mutate(N_languages_person = as.factor(N_languages_person),
          immigration_generation = na_if(immigration_generation, "Not available"),
          immigration_generation = factor(immigration_generation),
@@ -308,6 +308,12 @@ hhdata_model_exp <- hhdata_model %>%
 
 contrasts(hhdata_model_exp$n_biling_adults_group) <- contr_diff_3
 
+hhdata_model_exp_fr_eng <- hhdata_model_exp %>% 
+  filter(fr_eng == TRUE)
+
+hhdata_model_exp_other <- hhdata_model_exp %>% 
+  filter(fr_eng == FALSE)
+
 # filter for only quebec data - NOT USED IN ANALYSES REPORTED IN PAPER
 hhdata_model_quebec_exp <- hhdata_model_exp %>% 
   filter(province == "Quebec")
@@ -330,6 +336,18 @@ summary(m_all)
 m_exp <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_exp, family = "binomial")
 
 summary(m_exp)
+
+# model for French-English bilingually-exposed children
+
+m_exp_fr_eng <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_exp_fr_eng, family = "binomial")
+
+summary(m_exp_fr_eng)
+
+# model for non-French-English bilingually-exposed children 
+
+m_exp_other <- glm(child_biling ~ n_biling_adults_group + highest_ed + income_quintile + immigration_generation, data = hhdata_model_exp_other, family = "binomial")
+
+summary(m_exp_other)
 ```
 
 ## Rest of Canada model - NOT USED IN ANALYSES REPORTED IN PAPER
@@ -460,6 +478,18 @@ newdata_exp <- with(hhdata_model_exp, expand.grid(n_biling_adults_group = unique
                                               income_quintile = unique(income_quintile),
                                               immigration_generation = unique(immigration_generation)))
 
+### for only Fr-Eng bilingually exposed children
+newdata_exp_fr_eng <- with(hhdata_model_exp_fr_eng, expand.grid(n_biling_adults_group = unique(n_biling_adults_group),
+                                              highest_ed = unique(highest_ed),
+                                              income_quintile = unique(income_quintile),
+                                              immigration_generation = unique(immigration_generation)))
+
+### for only other bilingually exposed children
+newdata_exp_other <- with(hhdata_model_exp_other, expand.grid(n_biling_adults_group = unique(n_biling_adults_group),
+                                              highest_ed = unique(highest_ed),
+                                              income_quintile = unique(income_quintile),
+                                              immigration_generation = unique(immigration_generation)))
+
 ## 2. predict values for each combination
 
 # Canada all
@@ -478,6 +508,14 @@ quebec_all <- newdata_all
 # Canada exposed
 newdata_exp$prediction <- predict(m_exp, newdata=newdata_exp)
 canada_exp <- newdata_exp
+
+# Canada exposed - Fr-Eng
+newdata_exp_fr_eng$prediction <- predict(m_exp_fr_eng, newdata=newdata_exp_fr_eng)
+canada_exp_fr_eng <- newdata_exp_fr_eng
+
+# Canada exposed - other
+newdata_exp_other$prediction <- predict(m_exp_other, newdata=newdata_exp_other)
+canada_exp_other <- newdata_exp_other
 
 # ROC exposed
 newdata_exp$prediction <- predict(m_roc_exp, newdata=newdata_exp)
@@ -523,6 +561,8 @@ prob_pred <- function(pred){
 ### apply function to each of the 4 models
 canada_all_prob <- prob_pred(canada_all)
 canada_exp_prob <- prob_pred(canada_exp)
+canada_exp_fr_eng_prob <- prob_pred(canada_exp_fr_eng)
+canada_exp_other_prob <- prob_pred(canada_exp_other)
 roc_all_prob <- prob_pred(roc_all)
 roc_exp_prob <- prob_pred(roc_exp)
 quebec_all_prob <- prob_pred(quebec_all)
@@ -585,6 +625,8 @@ biling_pct <- function(hhdata_df){
 
 canada_all_pct <- biling_pct(hhdata_model)
 canada_exp_pct <- biling_pct(hhdata_model_exp)
+canada_exp_fr_eng_pct <- biling_pct(hhdata_model_exp_fr_eng)
+canada_exp_other_pct <- biling_pct(hhdata_model_exp_other)
 roc_all_pct <- biling_pct(hhdata_model_roc)
 roc_exp_pct <- biling_pct(hhdata_model_roc_exp)
 quebec_all_pct <- biling_pct(hhdata_model_quebec)
@@ -627,11 +669,17 @@ write_csv(table_pct, here("03_output/Table-Percent-Multilingual-By-Characteristi
 canada_all_table <- canada_all_pct %>% 
   rename(`All children` = biling_pct)
 canada_exp_table <- canada_exp_pct %>% 
-  rename(`Bilingually-exposed children` = biling_pct)
+  rename(`Bilingually-exposed children (All)` = biling_pct)
+canada_exp_fr_eng_table <- canada_exp_fr_eng_pct %>% 
+  rename(`Bilingually-exposed children (English-French)` = biling_pct)
+canada_exp_other_table <- canada_exp_other_pct %>% 
+  rename(`Bilingually-exposed children (Other language pairs)` = biling_pct)
 
 
 canada_table_pct <- canada_all_table %>% 
   left_join(canada_exp_table, by = "predictor") %>% 
+  left_join(canada_exp_fr_eng_table, by = "predictor") %>% 
+  left_join(canada_exp_other_table, by = "predictor") %>% 
   mutate_if(is.numeric, round, 2) %>% 
   add_row(predictor = "Immigration generation", .before = 15) %>% 
   add_row(predictor = "Income quintile", .before = 10) %>% 
@@ -646,11 +694,17 @@ write_csv(canada_table_pct, here("03_output/Table-Percent-Multilingual-By-Charac
 canada_all_table <- canada_all_prob %>% 
   rename(`All children` = mean_prob)
 canada_exp_table <- canada_exp_prob %>% 
-  rename(`Bilingually-exposed children` = mean_prob)
+  rename(`Bilingually-exposed children (All)` = mean_prob)
+canada_exp_fr_eng_table <- canada_exp_fr_eng_prob %>% 
+  rename(`Bilingually-exposed children (English-French)` = mean_prob)
+canada_exp_other_table <- canada_exp_other_prob %>% 
+  rename(`Bilingually-exposed children (Other language pairs)` = mean_prob)
 
 
 canada_table_prob <- canada_all_table %>% 
   left_join(canada_exp_table, by = "predictor") %>% 
+  left_join(canada_exp_fr_eng_table, by = "predictor") %>% 
+  left_join(canada_exp_other_table, by = "predictor") %>% 
   mutate_if(is.numeric, round, 2) %>% 
   add_row(predictor = "Immigration generation", .before = 15) %>% 
   add_row(predictor = "Income quintile", .before = 10) %>% 
