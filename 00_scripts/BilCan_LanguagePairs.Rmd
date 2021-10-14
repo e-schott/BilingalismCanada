@@ -273,53 +273,62 @@ full_table %>%
 
 ```
 # census agglomerations
+# calculate totals
+```{r}
+n_children_by_age_area = idata %>% 
+  filter(age_group %in% age_groups_of_interest,
+         area != "Other") %>%
+  mutate(age_collapsed = fct_collapse(age_group, 
+                      "age_0_to_4" = "0 to 4 years",
+                      "age_5_to_9" = c("5 to 6 years", "7 to 9 years"))) %>% 
+  group_by(area, age_collapsed) %>% 
+  count(name = "total_by_age") %>%
+  ungroup()
+```
+
+# calculate percentages
 ```{r}
 lang_pair_by_area_and_age_long  = 
   lang_pair_data %>% 
+  # remove provinces that don't have metropolitan areas in census, and rural areas
+  filter(!province %in% c("Newfoundland and Labrador", "Prince Edward Island", "Northern Canada"), area != "Other") %>%
   filter(age_group %in% age_groups_of_interest) %>%
   droplevels() %>%
   group_by(province, area, age_collapsed) %>% 
-  count(language_pair) #%>% 
-  left_join(n_children_by_age) %>% # how how many children per age group
+  count(language_pair) %>% 
+  left_join(n_children_by_age_area) %>% # how how many children per age group
+  mutate(official_language = str_extract(language_pair, "English|French"),
+         language_pair_collapsed = case_when(
+           n/total_by_age > 0.012 ~ language_pair,
+           str_detect(language_pair, "Aboriginal") ~ language_pair,
+           official_language == "English" ~ "English&Other",
+           official_language == "French" ~ "French&Other",
+           is.na(official_language) ~ "Other&Other"
+         ),
+         language_pair_type = case_when(
+           str_detect(language_pair, "Aboriginal") ~ "actual",
+           str_detect(language_pair, "Other") ~ "collapsed",
+           n/total_by_age > 0.012 ~ "actual",
+         TRUE ~ "collapsed")) %>% 
+  ungroup() %>%
+  group_by(province, area, age_collapsed, total_by_age, language_pair_type, language_pair_collapsed) %>%
+  summarize(n = sum(n)) %>%
+  
   mutate(n_bilingual_children = sum(n),
     percent_bilingual_children = round(n/n_bilingual_children*100,1), # add percent
     percent_all_children = round(n/total_by_age*100,1)) %>% 
-  ungroup()
+  ungroup() %>%
+  arrange(province, area, age_collapsed,language_pair_type, -n)
   
   
-lang_pair_by_area_and_age_long  = 
-  lang_pair_data %>% 
-  filter(age_group %in% age_groups_of_interest) %>%
-  droplevels() %>%
-  tabyl(language_pair, age_group, area) %>%
-  adorn_percentages("col") %>%
-  adorn_pct_formatting(digits = 1)
-
-lang_pair_by_area_and_age_long = 
-  Map(cbind, lang_pair_by_area_and_age_long, area = names(lang_pair_by_area_and_age_long)) %>%
- bind_rows(.id = "area")
 
 
-lang_pair_by_area_and_age_long %>%
-  arrange(area, desc(`0 to 4 years`)) %>%
-  group_by(area) %>%
-  top_n(10)
-  
-    adorn_totals(where = "col") %>%
-
-adorn_totals(where = "row") 
-
-  adorn_totals(c("col")) %>%
-  adorn_percentages("col") %>%
-  adorn_pct_formatting(digits = 1) %>%
-  arrange(Totals)
-
-#%>% 
-  left_join(n_children_by_age) %>% # how how many children per age group
-  mutate(n_bilingual_children = sum(n),
-    percent_bilingual_children = round(n/n_bilingual_children*100,1), # add percent
-    percent_all_children = round(n/total_by_age*100,1)) %>% 
-  ungroup()
+```
+## for paper
+```{r}
+lang_pair_by_area_and_age_long %>% 
+  filter(area %in% c("Toronto", "Montreal", "Vancouver", "Ottawa")) %>%
+  View()
 ```
 
 
