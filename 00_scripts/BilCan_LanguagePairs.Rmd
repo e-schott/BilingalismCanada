@@ -25,7 +25,21 @@ library(snakecase)
 ## read in data
 ```{r}
 idata = import(here::here("03_output","00_processed_data", "idata_preprocessed.Rdata"))
+
+
+
 ```
+
+## fix ottawa/gatineau area
+```{r}
+idata = idata %>%
+  mutate(area = case_when(
+    province == "Quebec" & area == "Ottawa – Gatineau" ~ "Gatineau",
+    province == "Ontario" & area == "Ottawa – Gatineau" ~ "Ottawa",
+    TRUE ~ as.character(area)))
+```
+
+
 ## set age group of interest
 ```{r}
 # create variable with age groups, for easier use with filter
