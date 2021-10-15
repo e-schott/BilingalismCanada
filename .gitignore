@@ -36,3 +36,7 @@ gcd_000b11a_e\.dbf
 *.xlsx
 
 .RDataTmp
+
+02_map_data/
+
+03_output/00_processed_data/idata_raw.Rdata
