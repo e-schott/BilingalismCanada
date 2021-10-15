@@ -273,7 +273,7 @@ full_table %>%
 
 ```
 # census agglomerations
-# calculate totals
+## calculate totals
 ```{r}
 n_children_by_age_area = idata %>% 
   filter(age_group %in% age_groups_of_interest,
@@ -281,12 +281,12 @@ n_children_by_age_area = idata %>%
   mutate(age_collapsed = fct_collapse(age_group, 
                       "age_0_to_4" = "0 to 4 years",
                       "age_5_to_9" = c("5 to 6 years", "7 to 9 years"))) %>% 
-  group_by(area, age_collapsed) %>% 
+  group_by(province, area, age_collapsed) %>% 
   count(name = "total_by_age") %>%
   ungroup()
 ```
 
-# calculate percentages
+## calculate percentages
 ```{r}
 lang_pair_by_area_and_age_long  = 
   lang_pair_data %>% 
@@ -295,11 +295,13 @@ lang_pair_by_area_and_age_long  =
   filter(age_group %in% age_groups_of_interest) %>%
   droplevels() %>%
   group_by(province, area, age_collapsed) %>% 
-  count(language_pair) %>% 
+  count(language_pair) 
+
+lang_pair_by_area_and_age_percent = lang_pair_by_area_and_age_long %>%
   left_join(n_children_by_age_area) %>% # how how many children per age group
   mutate(official_language = str_extract(language_pair, "English|French"),
          language_pair_collapsed = case_when(
-           n/total_by_age > 0.012 ~ language_pair,
+           n/total_by_age > 0.012 & !str_detect(language_pair, "Other") ~ language_pair,
            str_detect(language_pair, "Aboriginal") ~ language_pair,
            official_language == "English" ~ "English&Other",
            official_language == "French" ~ "French&Other",
@@ -324,11 +326,37 @@ lang_pair_by_area_and_age_long  =
 
 
 ```
+## combined for ages 0-9
+```{r}
+lang_pair_by_area_0_to_9 = lang_pair_by_area_and_age_long %>%
+  left_join(n_children_by_age_area) %>%
+  mutate(age_combined = fct_collapse(age_collapsed, 
+                            "age_0_to_9" = c("age_0_to_4", "age_5_to_9"))) 
+
+lang_pair_by_area_0_to_9_totals = 
+  lang_pair_by_area_0_to_9 %>%
+  select(-n, -language_pair) %>%
+  distinct(province, area, .keep_all = T) %>% 
+  group_by(province, area) %>%
+  summarize(total = sum(total_by_age)) %>%
+           ungroup() 
+
+lang_pair_by_area_0_to_9  = lang_pair_by_area_0_to_9 %>%
+  full_join(lang_pair_by_area_0_to_9_totals) %>%
+  group_by(province, area, total, language_pair, age_combined) %>%
+  summarize(n_pair = sum(n)) %>% 
+  group_by(province, area) %>%
+  mutate(n_bilingual = sum(n_pair))
+# next step: calculate percents
+```
+
+
+
 ## for paper
 ```{r}
-lang_pair_by_area_and_age_long %>% 
-  filter(area %in% c("Toronto", "Montreal", "Vancouver", "Ottawa")) %>%
-  View()
+Table_2.3 = 
+  lang_pair_by_area_and_age_percent %>% 
+  filter(area %in% c("Toronto", "Montréal", "Vancouver", "Ottawa – Gatineau")) 
 ```
 
 
