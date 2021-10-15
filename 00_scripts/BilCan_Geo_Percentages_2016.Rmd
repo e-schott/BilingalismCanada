@@ -53,8 +53,8 @@ age_groups_of_interest = c("0 to 4 years", "5 to 6 years", "7 to 9 years")
 
 ```
 
-## table 1: detailed age breakdown
-### narrow down age range to kids, select columns
+# Table 1: detailed age breakdown
+## narrow down age range to kids, select columns
 ```{r}
 idata_child = idata %>%
   # look only at children under 9
@@ -66,7 +66,7 @@ idata_child = idata %>%
   select(province, area, age_group, age_collapsed, n_languages, lang_pair, sex, person_id)
 
 ```
-### remove missing data from dataframe
+## remove missing data from dataframe
 For some children, there was no info on languages spoken, we remove those to avoid underestimating the % of bilinguals
 ```{r}
 idata_child = idata_child %>%
@@ -162,7 +162,7 @@ table_city_by_age_subgroup = idata_child %>%
   filter(!province %in% c("Newfoundland and Labrador", "Prince Edward Island", "Northern Canada")) %>%
   group_by(province, age_collapsed, area) %>%
   mutate(total = n()) %>% 
-  group_by(province, age_collapsed, total, area,n_languages) %>%
+  group_by(province, age_collapsed, total, area, n_languages) %>%
   summarize(N=n()) %>% 
   mutate( Percent = round(N/total,3)) %>%
   ungroup() %>% 
