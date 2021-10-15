@@ -282,6 +282,8 @@ full_table = full_table %>%
 
 ## write table to csv
 ```{r}
+full_table$province[duplicated(full_table$province)] <- ""
+
 full_table %>%
   write_csv(here("03_output", "02_tables", "Table2_language_pairs_by_province.csv"))
 
@@ -412,8 +414,15 @@ percent_bilingual_children_age_0_to_9, percent_all_children_age_0_to_9,)
 ## for paper
 ```{r}
 Table_2.3 = 
-  lang_pair_by_area_and_age_percent %>% 
-  filter(area %in% c("Toronto", "Montréal", "Vancouver", "Ottawa – Gatineau")) 
+  lang_pair_by_area_wide %>% 
+  filter(area %in% c("Toronto", "Montréal", "Vancouver", "Ottawa", "Gatineau")) 
+
+
+# silly formatting changes
+
+Table_2.3$area[duplicated(Table_2.3$area)] <- ""
+Table_2.3$province[duplicated(Table_2.3$province)] <- ""
+
 ```
 
 
