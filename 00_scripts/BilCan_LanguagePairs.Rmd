@@ -146,39 +146,8 @@ province_by_age_wide = lang_pair_by_province_and_age_long %>%
               values_from = c("percent_bilingual_children", "percent_all_children"))
 
 ```
-### for all of canada
-#### calculate totals
-```{r}
-totals_across_canada = lang_pair_by_province_and_age_long %>% 
-  mutate(country = "Canada") %>% 
-  group_by(province, age_collapsed) %>%
-  top_n(n, n = 1) %>%
-  select(country, province, age_collapsed,  n_bilingual_children, total_by_age)%>%
-  group_by(country, age_collapsed) %>%
-  summarize(total_by_age_canada = sum(total_by_age),
-            n_bilingual_by_age_canada = sum(n_bilingual_children))
-```
 
-#### calculate percent
-```{r}
-canada_language_pairs = lang_pair_by_province_and_age_long %>% 
-  left_join(totals_across_canada) %>% 
-  group_by(country, age_collapsed, language_pair, total_by_age_canada, n_bilingual_by_age_canada) %>%
-  summarise(n_canada = sum(n)) %>%
-  mutate(
-         percent_all_children =  round(n_canada/total_by_age_canada*100,1),
-         percent_bilingual_children = round(n_canada/n_bilingual_by_age_canada*100,1)) %>% 
-  arrange(age_collapsed, -percent_bilingual_children) %>%
-  ungroup()
 
-# create wide data frame ( show % bilingual and % all next to each other)
-canada_by_age_wide = canada_language_pairs %>% 
-  # get rid of columns that vary that we won't need any more (prevent pivot_wider from functioning correctly)
-  select(-n_canada, -total_by_age_canada, -n_bilingual_by_age_canada) %>% 
-  pivot_wider(names_from = age_collapsed, 
-              values_from = c("percent_bilingual_children", "percent_all_children"))
-
-```
 
 
 ## percentages combined for ages 0-9
@@ -205,7 +174,32 @@ lang_pair_by_province_all_ages_combined = lang_pair_data %>%
   select(-n, -total_by_age)
   
 ```
-### all of canada
+### for all of canada
+
+#### calculate percent
+```{r}
+canada_language_pairs = lang_pair_by_province_and_age_long %>% 
+  left_join(totals_across_canada) %>% 
+  group_by(country, age_collapsed, language_pair, total_by_age_canada, n_bilingual_by_age_canada) %>%
+  summarise(n_canada = sum(n)) 
+
+```
+
+#### separeated by age
+calculate totals
+```{r}
+totals_across_canada = lang_pair_by_province_and_age_long %>% 
+  mutate(country = "Canada") %>% 
+  group_by(province, age_collapsed) %>%
+  top_n(n, n = 1) %>%
+  select(country, province, age_collapsed,  n_bilingual_children, total_by_age)%>%
+  group_by(country, age_collapsed) %>%
+  summarize(total_by_age_canada = sum(total_by_age),
+            n_bilingual_by_age_canada = sum(n_bilingual_children))
+```
+
+
+### all of canada 0-9
 #### calculate totals
 ```{r}
 canada_totals_all_ages_combined = 
@@ -216,14 +210,42 @@ canada_totals_all_ages_combined =
             n_bilingual_by_age_canada = sum(n_bilingual_by_age_canada)) %>%
   mutate(age_combined = "age_0_to_9")
 ```
-
+### combine language pairs
+```{r}
+canada_language_pairs_dictionary =  canada_language_pairs %>% 
+  
+  mutate(age_combined = fct_collapse(age_collapsed, "age_0_to_9" = c("age_0_to_4", "age_5_to_9"))) %>%
+  group_by(language_pair, age_combined) %>%
+  summarize(n = sum(n_canada)) %>%
+  ungroup() %>%
+  mutate(collapse = ifelse(n > 600, F, T),
+    official_language = str_extract(language_pair, "English|French"),
+         language_pair_collapsed = case_when(
+          collapse == FALSE & !str_detect(language_pair, "Other") ~ language_pair,
+      
+           str_detect(language_pair, "Aboriginal") ~ language_pair,
+           official_language == "English" ~ "English & Other",
+           official_language == "French" ~ "French & Other",
+           is.na(official_language) ~ "Other & Other"
+         ),
+         language_pair_type = case_when(
+           str_detect(language_pair, "Aboriginal") ~ "actual",
+           collapse == FALSE ~ "actual",
+           str_detect(language_pair, "Other") ~ "collapsed",
+        #   n/total_by_age > 0.012 ~ "actual",
+         TRUE ~ "collapsed")) %>%
+  ungroup() %>%
+  select(-n, -official_language, -collapse, -age_combined) %>%
+  distinct()
+```
 #### calculate percent
 ```{r}
 
 canada_ages_combined = canada_language_pairs %>%
   mutate(age_combined = fct_collapse(age_collapsed, 
                             "age_0_to_9" = c("age_0_to_4", "age_5_to_9"))) %>%
-  group_by(language_pair, age_combined) %>%
+  left_join(canada_language_pairs_dictionary) %>% 
+  group_by(language_pair_type, language_pair_collapsed, age_combined) %>%
   summarize(n = sum(n_canada)) %>%
   full_join(canada_totals_all_ages_combined) %>%
   mutate(percent_all_children =  round(n/total_by_age_canada*100,1),
@@ -236,6 +258,29 @@ canada_ages_combined = canada_language_pairs %>%
               values_from = c("percent_bilingual_children", "percent_all_children"))
 
 ```
+###separate for each age
+
+## calculate percent
+
+```{r}
+canada_language_pairs= canada_language_pairs %>%
+  left_join(canada_language_pairs_dictionary) %>% 
+  group_by(language_pair_type, language_pair_collapsed, age_collapsed) %>%
+  summarize(n = sum(n_canada)) %>%   
+  left_join(totals_across_canada) %>%
+  mutate(
+         percent_all_children =  round(n_canada/total_by_age_canada*100,1),
+         percent_bilingual_children = round(n_canada/n_bilingual_by_age_canada*100,1)) %>% 
+  arrange(age_collapsed, -percent_bilingual_children) %>%
+  ungroup()
+# create wide data frame ( show % bilingual and % all next to each other)
+canada_by_age_wide = canada_language_pairs %>% 
+  # get rid of columns that vary that we won't need any more (prevent pivot_wider from functioning correctly)
+  select(-n_canada, -total_by_age_canada, -n_bilingual_by_age_canada) %>% 
+  pivot_wider(names_from = age_collapsed, 
+              values_from = c("percent_bilingual_children", "percent_all_children"))
+```
+
 ## combine tables into one
 ### merge calculations sepearate for each age group and combined together
 ####  canada 
