@@ -327,7 +327,7 @@ lang_pair_by_area_and_age_percent = lang_pair_by_area_and_age_long %>%
 ```{r}
 lang_pair_by_area_0_to_9 = lang_pair_by_area_and_age_long %>%
   mutate(age_group = fct_collapse(age_group, 
-                            "age_0_to_9" = age_groups_of_interest)) %>% 
+                            "age_0_to_9" = c("age_0_to_4", "age_5_to_9"))) %>% 
 group_by(province, area, language_pair, age_group) %>%
   summarize(n = sum(n)) #%>% 
   
@@ -422,6 +422,8 @@ Table_2.3 =
 
 Table_2.3$area[duplicated(Table_2.3$area)] <- ""
 Table_2.3$province[duplicated(Table_2.3$province)] <- ""
+Table_2.3 %>%
+  write_excel_csv(here("03_output", "02_tables", "Table2.3_language_pairs_by_area.csv"))
 
 ```
 
