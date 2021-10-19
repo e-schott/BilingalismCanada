@@ -230,8 +230,8 @@ canada_language_pairs_dictionary =  canada_language_pairs %>%
          ),
          language_pair_type = case_when(
            str_detect(language_pair, "Aboriginal") ~ "actual",
+           str_detect(language_pair, "Other") ~ "collapsed", 
            collapse == FALSE ~ "actual",
-           str_detect(language_pair, "Other") ~ "collapsed",
         #   n/total_by_age > 0.012 ~ "actual",
          TRUE ~ "collapsed")) %>%
   ungroup() %>%
@@ -283,10 +283,22 @@ canada_by_age_wide = canada_language_pairs_new %>%
 ```
 
 ## combine tables into one
-### merge calculations sepearate for each age group and combined together
-####  canada 
+
 ```{r}
 canada_language_pair_data =  full_join(canada_by_age_wide, canada_ages_combined)
+```
+## write to csv
+```{r}
+canada_language_pair_data %>%
+  arrange(language_pair_type) %>%
+  select(language_pair_collapsed, 
+         percent_bilingual_children_age_0_to_4,
+         percent_bilingual_children_age_5_to_9,
+         percent_bilingual_children_age_0_to_9,
+         percent_all_children_age_0_to_4,
+         percent_all_children_age_5_to_9,
+         percent_all_children_age_0_to_9 ) %>%
+  write_excel_csv(here("03_output", "02_tables", "Table2_language_pairs_Canada.csv"))
 ```
 
 #### province 
