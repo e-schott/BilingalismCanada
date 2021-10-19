@@ -462,8 +462,8 @@ lang_pair_by_area_wide = lang_pair_by_area %>%
   select(-n, -total_by_age, - n_bilingual_children, -language_pair_type) %>% 
   pivot_wider(names_from = age_group, 
               values_from = c("percent_bilingual_children", "percent_all_children"))  %>%
-  select(province, area, language_pair_collapsed, percent_bilingual_children_age_0_to_4, percent_all_children_age_0_to_4, percent_bilingual_children_age_5_to_9, percent_all_children_age_5_to_9,
-percent_bilingual_children_age_0_to_9, percent_all_children_age_0_to_9,)
+  select(province, area, language_pair_collapsed, percent_bilingual_children_age_0_to_4, percent_bilingual_children_age_5_to_9, percent_bilingual_children_age_0_to_9, percent_all_children_age_0_to_4, percent_all_children_age_5_to_9,
+ percent_all_children_age_0_to_9,)
 # need to deal with some inconsistencies, but ok otherwise
 ```
 
