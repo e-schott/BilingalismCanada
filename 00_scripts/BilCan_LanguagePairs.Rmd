@@ -101,16 +101,15 @@ language_pair_dictionary =
   # if English, French, or aboriginal language came last, put it first now - else keep as is
   mutate(language_pair = ifelse(fix == TRUE, paste(lang2, lang1, sep = " & "), language_pair)) %>%
   # keep only old name (for matching) and new name
-  select(language_pair, language_pair_old)
+  select(language_pair, language_pair_old) %>%
+  add_row(language_pair = "Other Pairs", language_pair_old = "Other Pairs")
 
 ```
 
-# Table 2: look at languages by province
+# Table 2.2: look at languages by province
+# calculate totals 
 
-## percentage out of bilingual/all children by age group
- separate for 0-4 and 5-9 yo
-### by province
-#### calculate totals 
+
 ```{r}
 
 # how many children are in the census dataset (regardless of languages spoken)
@@ -124,35 +123,9 @@ n_children_by_age = idata %>% filter(age_group %in% age_groups_of_interest) %>%
 
 ```
 
-
-#### calculate percent
-```{r}
-
-lang_pair_by_province_and_age_long  = 
-  lang_pair_data %>% 
-  filter(age_group %in% age_groups_of_interest) %>%
-  group_by(province, age_collapsed) %>% 
-  count(language_pair) %>% 
-  left_join(n_children_by_age) %>% # how how many children per age group
-  mutate(n_bilingual_children = sum(n),
-    percent_bilingual_children = round(n/n_bilingual_children*100,1), # add percent
-    percent_all_children = round(n/total_by_age*100,1)) %>% 
-  ungroup() 
-
-# create a wide table with % biling and % all next to each other
-province_by_age_wide = lang_pair_by_province_and_age_long %>%
-  select( - n, -total_by_age, - n_bilingual_children) %>% 
-  pivot_wider(names_from = age_collapsed, 
-              values_from = c("percent_bilingual_children", "percent_all_children"))
-
-```
-
-
-
-
 ## percentages combined for ages 0-9
 
-### by province (totals & percent)
+### totals & percent
 calculate totals and percentages in one, since the calculation is pretty easy
 ```{r}
 lang_pair_by_province_all_ages_combined = lang_pair_data %>% 
@@ -170,13 +143,109 @@ lang_pair_by_province_all_ages_combined = lang_pair_data %>%
                summarize(total_by_age = sum(total_by_age))) %>%
   #calculate percentages
   mutate(percent_bilingual_children_age_0_to_9 = round(n/sum(n)*100,1), # add percent
-         percent_all_children_age_0_to_9 = round(n/total_by_age*100, 1)) %>% 
-  select(-n, -total_by_age)
+         percent_all_children_age_0_to_9 = round(n/total_by_age*100, 1))
   
 ```
-### for all of canada
-#### separeated by age
-calculate totals
+
+### create simplified language pairs table
+```{r}
+
+province_lang_pair_dict = lang_pair_by_province_all_ages_combined %>%
+  mutate(language_pair_simplified = case_when(
+    str_detect(language_pair, "Other") ~ "Other Pairs",
+    percent_all_children_age_0_to_9 > 0.5 ~ language_pair,
+    TRUE ~ "Other Pairs")) %>% 
+  select(-percent_bilingual_children_age_0_to_9, -percent_all_children_age_0_to_9)
+```
+
+### re-calculate percent with new "other pairs" category
+```{r}
+lang_pair_by_province_all_ages_combined %<>%
+    select(-percent_bilingual_children_age_0_to_9, -percent_all_children_age_0_to_9) %>%
+  full_join(province_lang_pair_dict) %>%
+  group_by(province, total_by_age, language_pair_simplified) %>% 
+  summarize(n = sum(n)) %>%
+  #calculate percentages
+  mutate(percent_bilingual_children_age_0_to_9 = round(n/sum(n)*100,1), # add percent
+         percent_all_children_age_0_to_9 = round(n/total_by_age*100, 1))
+  
+
+```
+
+
+## separate for 0-4 and 5-9
+### simplify language pairs
+```{r}
+
+lang_pair_by_province_and_age_long  = 
+  lang_pair_data %>% 
+  select(province, age_group, language_pair, age_collapsed) %>%
+  filter(age_group %in% age_groups_of_interest) %>%
+  full_join(province_lang_pair_dict)
+  
+```
+### calculate percent
+
+```{r}
+lang_pair_by_province_and_age_long %<>%
+  group_by(province, age_collapsed) %>% 
+  count(language_pair_simplified) %>% 
+  left_join(n_children_by_age) %>% # how how many children per age group
+  mutate(n_bilingual_children = sum(n),
+    percent_bilingual_children = round(n/n_bilingual_children*100,1), # add percent
+    percent_all_children = round(n/total_by_age*100,1)) %>% 
+  ungroup() 
+
+# create a wide table with % biling and % all next to each other
+province_by_age_wide = lang_pair_by_province_and_age_long %>%
+  select( - n, -total_by_age, - n_bilingual_children) %>% 
+  pivot_wider(names_from = age_collapsed, 
+              values_from = c("percent_bilingual_children", "percent_all_children"))
+
+```
+
+
+
+
+
+
+#### combine separate and collapsed ages 
+```{r}
+province_language_pair_data =  
+  full_join(province_by_age_wide, lang_pair_by_province_all_ages_combined) 
+```
+
+
+### fix formatting for table
+
+```{r}
+province_language_pair_data = province_language_pair_data %>%
+  mutate(order_by_type = ifelse(str_detect(language_pair_simplified, "Other" ),2,1),
+         province = fct_expand(province, ""))%>%
+  arrange(province, order_by_type, -percent_bilingual_children_age_0_to_9) %>%
+   left_join(language_pair_dictionary, by = c("language_pair_simplified" = "language_pair_old")) %>% 
+  select(-language_pair_simplified, -n, -total_by_age, -order_by_type) %>% # get rid of messy column name
+  # reorder some columns
+  relocate(language_pair, 
+           .after = province) %>%
+  relocate(percent_bilingual_children_age_0_to_9, 
+           .after = percent_bilingual_children_age_5_to_9)
+
+
+```
+
+## write table to csv
+```{r}
+province_language_pair_data$province[duplicated(province_language_pair_data$province)] <- ""
+
+province_language_pair_data %>%
+  write_csv(here("03_output", "02_tables", "Table2.2_language_pairs_by_province.csv"))
+
+```
+
+# Table 2.1. Canada-wide
+## separated by age
+###calculate totals
 ```{r}
 totals_across_canada = lang_pair_by_province_and_age_long %>% 
   mutate(country = "Canada") %>% 
@@ -187,7 +256,7 @@ totals_across_canada = lang_pair_by_province_and_age_long %>%
   summarize(total_by_age_canada = sum(total_by_age),
             n_bilingual_by_age_canada = sum(n_bilingual_children))
 ```
-#### calculate percent
+### calculate percent
 ```{r}
 canada_language_pairs = lang_pair_by_province_and_age_long %>% 
   left_join(totals_across_canada) %>% 
@@ -199,8 +268,8 @@ canada_language_pairs = lang_pair_by_province_and_age_long %>%
 
 
 
-### all of canada 0-9
-#### calculate totals
+##  0-9
+### calculate totals
 ```{r}
 canada_totals_all_ages_combined = 
   canada_language_pairs %>% ungroup() %>%
@@ -238,7 +307,7 @@ canada_language_pairs_dictionary =  canada_language_pairs %>%
   select(-n, -official_language, -collapse, -age_combined) %>%
   distinct()
 ```
-#### calculate percent
+### calculate percent
 ```{r}
 
 canada_ages_combined = canada_language_pairs %>%
@@ -259,12 +328,12 @@ canada_ages_combined = canada_language_pairs %>%
               values_from = c("percent_bilingual_children", "percent_all_children"))
 
 ```
-###separate for each age
+## separate for each age
 
-## calculate percent
+### calculate percent
 
 ```{r}
-canada_language_pairs_new = canada_language_pairs %>%
+canada_language_pairs = canada_language_pairs %>%
   left_join(canada_language_pairs_dictionary) %>% 
   group_by(language_pair_type, language_pair_collapsed, age_collapsed) %>%
   summarize(n = sum(n_canada)) %>%   
@@ -275,7 +344,7 @@ canada_language_pairs_new = canada_language_pairs %>%
   arrange(age_collapsed, -percent_bilingual_children) %>%
   ungroup()
 # create wide data frame ( show % bilingual and % all next to each other)
-canada_by_age_wide = canada_language_pairs_new %>% 
+canada_by_age_wide = canada_language_pairs %>% 
   # get rid of columns that vary that we won't need any more (prevent pivot_wider from functioning correctly)
   select(-n, -total_by_age_canada, -n_bilingual_by_age_canada) %>% 
   pivot_wider(names_from = age_collapsed, 
@@ -298,55 +367,10 @@ canada_language_pair_data %>%
          percent_all_children_age_0_to_4,
          percent_all_children_age_5_to_9,
          percent_all_children_age_0_to_9 ) %>%
-  write_excel_csv(here("03_output", "02_tables", "Table2_language_pairs_Canada.csv"))
+  write_excel_csv(here("03_output", "02_tables", "Table2.1_language_pairs_Canada.csv"))
 ```
 
-#### province 
-```{r}
-province_language_pair_data =  
-  full_join(province_by_age_wide, lang_pair_by_province_all_ages_combined) 
-```
-
-### combine province and all of canada data
-```{r}
-full_table = full_join(province_language_pair_data, canada_language_pair_data)
-```
-
-### fix formatting for table
-
-```{r}
-
-full_table = full_table %>%
-  # remove other label
-  mutate( other_flag = str_detect(language_pair, "Other")) %>%
-  filter(other_flag != TRUE) %>% 
-  # exclude language combos that appear very rarely
-  filter(percent_all_children_age_0_to_9 > .5) %>% 
-  select(-other_flag) %>%
-  arrange(province, -percent_bilingual_children_age_0_to_9) %>%
-    # fix language pair names
-  rename(language_pair_old = language_pair) %>% 
-  left_join(language_pair_dictionary, by = "language_pair_old") %>%
-  select(-language_pair_old) %>% # get rid of messy column name
-  # reorder some columns
-  relocate(language_pair, 
-           .after = province) %>%
-  relocate(country, .before = province) %>%
-  relocate(percent_bilingual_children_age_0_to_9, 
-           .after = percent_bilingual_children_age_5_to_9)
-
-
-```
-
-## write table to csv
-```{r}
-full_table$province[duplicated(full_table$province)] <- ""
-
-full_table %>%
-  write_csv(here("03_output", "02_tables", "Table2_language_pairs_by_province.csv"))
-
-```
-# census agglomerations
+# Table S1 census agglomerations
 ## calculate totals
 ```{r}
 n_children_by_age_area = idata %>% 
@@ -411,13 +435,13 @@ arrange(collapse, -n) %>%
          language_pair_collapsed = case_when(
           collapse == FALSE & !str_detect(language_pair, "Other") ~ language_pair,
       # not enough kids with aboriginal languages to include that as a separate category
-            #    str_detect(language_pair, "Aboriginal") ~ language_pair,
+         #       str_detect(language_pair, "Aboriginal") ~ language_pair,
            official_language == "English" ~ "English&Other",
            official_language == "French" ~ "French&Other",
            is.na(official_language) ~ "Other&Other"
          ),
          language_pair_type = case_when(
-         #  str_detect(language_pair, "Aboriginal") ~ "actual",
+     #      str_detect(language_pair, "Aboriginal") ~ "actual",
            str_detect(language_pair, "Other") ~ "collapsed",
            n/total_by_age > 0.012 ~ "actual",
          TRUE ~ "collapsed")) %>%
@@ -425,14 +449,11 @@ arrange(collapse, -n) %>%
   select(-n, -total_by_age, -official_language, -collapse, -ratio, -age_group) %>%
   distinct()
 
- lang_pair_by_area_summary %>%
-   select(-language_pair) %>%
-  distinct(province, area, language_pair_collapsed) %>% View( )
 ```
 
 
 
-# combine separate age group counts and combined
+## combine separate age group counts and combined
 ```{r}
 lang_pair_by_area = rbind(lang_pair_by_area_0_to_9, lang_pair_by_area_and_age_percent)
 ```
@@ -456,7 +477,7 @@ lang_pair_by_area = lang_pair_by_area %>%
   arrange(province, area, age_group, language_pair_type, -n)
   
 ```
-# switch to wide layout
+## switch to wide layout
 ```{r}
 lang_pair_by_area_wide = lang_pair_by_area %>%
   select(-n, -total_by_age, - n_bilingual_children, -language_pair_type) %>% 
@@ -472,16 +493,16 @@ lang_pair_by_area_wide = lang_pair_by_area %>%
 ## for paper
 ```{r}
 Table_2.3 = 
-  lang_pair_by_area_wide %>% 
-  filter(area %in% c("Toronto", "Montréal", "Vancouver", "Ottawa", "Gatineau")) 
-
+  lang_pair_by_area_wide %>%
+    mutate(language_pair_collapsed = gsub("&", " & ", language_pair_collapsed),
+           province = fct_expand(province, ""))
 
 # silly formatting changes
 
 Table_2.3$area[duplicated(Table_2.3$area)] <- ""
 Table_2.3$province[duplicated(Table_2.3$province)] <- ""
 Table_2.3 %>%
-  write_excel_csv(here("03_output", "02_tables", "Table2.3_language_pairs_by_area.csv"))
+  write_excel_csv(here("03_output", "02_tables", "TableS1_language_pairs_by_area.csv"))
 
 ```
 
