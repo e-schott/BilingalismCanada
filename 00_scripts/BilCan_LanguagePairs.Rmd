@@ -260,7 +260,7 @@ totals_across_canada = lang_pair_by_province_and_age_long %>%
 ```{r}
 canada_language_pairs = lang_pair_by_province_and_age_long %>% 
   left_join(totals_across_canada) %>% 
-  group_by(country, age_collapsed, language_pair, total_by_age_canada, n_bilingual_by_age_canada) %>%
+  group_by(country, age_collapsed, language_pair_simplified, total_by_age_canada, n_bilingual_by_age_canada) %>%
   summarise(n_canada = sum(n)) 
 
 ```
@@ -284,22 +284,22 @@ canada_totals_all_ages_combined =
 canada_language_pairs_dictionary =  canada_language_pairs %>% 
   
   mutate(age_combined = fct_collapse(age_collapsed, "age_0_to_9" = c("age_0_to_4", "age_5_to_9"))) %>%
-  group_by(language_pair, age_combined) %>%
+  group_by(language_pair_simplified, age_combined) %>%
   summarize(n = sum(n_canada)) %>%
   ungroup() %>%
   mutate(collapse = ifelse(n > 600, F, T),
-    official_language = str_extract(language_pair, "English|French"),
+    official_language = str_extract(language_pair_simplified, "English|French"),
          language_pair_collapsed = case_when(
-          collapse == FALSE & !str_detect(language_pair, "Other") ~ language_pair,
+          collapse == FALSE & !str_detect(language_pair_simplified, "Other") ~ language_pair_simplified,
       
-           str_detect(language_pair, "Aboriginal") ~ language_pair,
+           str_detect(language_pair_simplified, "Aboriginal") ~ language_pair_simplified,
            official_language == "English" ~ "English & Other",
            official_language == "French" ~ "French & Other",
            is.na(official_language) ~ "Other & Other"
          ),
          language_pair_type = case_when(
-           str_detect(language_pair, "Aboriginal") ~ "actual",
-           str_detect(language_pair, "Other") ~ "collapsed", 
+           str_detect(language_pair_simplified, "Aboriginal") ~ "actual",
+           str_detect(language_pair_simplified, "Other") ~ "collapsed", 
            collapse == FALSE ~ "actual",
         #   n/total_by_age > 0.012 ~ "actual",
          TRUE ~ "collapsed")) %>%
@@ -314,7 +314,7 @@ canada_ages_combined = canada_language_pairs %>%
   mutate(age_combined = fct_collapse(age_collapsed, 
                             "age_0_to_9" = c("age_0_to_4", "age_5_to_9"))) %>%
   left_join(canada_language_pairs_dictionary) %>% ungroup() %>%
-  select(-language_pair) %>%
+  select(-language_pair_simplified) %>%
   group_by(language_pair_type, language_pair_collapsed, age_combined) %>%
   summarize(n = sum(n_canada)) %>%
   full_join(canada_totals_all_ages_combined) %>%
