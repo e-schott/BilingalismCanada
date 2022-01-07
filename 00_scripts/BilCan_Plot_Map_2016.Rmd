@@ -82,15 +82,14 @@ Useful  info on canadian map data in R here: https://tengl.net/blog/2020/1/7/dra
 province_coordinates  <- import( here("02_map_data/province_map_data.Rdata")) 
 
 
-
-
 ```
 
 
 ## load census language data
 ```{r read_census_data}
 geo_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
-province_data = geo_data %>% filter(area == "zz_other" | province %in% c("Northern Canada", "Prince Edward Island", "Newfoundland and Labrador") ) %>% select(-area)
+province_data = geo_data %>% 
+  filter(area == "zz_other" | province %in% c("Northern Canada", "Prince Edward Island", "Newfoundland and Labrador") ) %>% select(-area)
 
 cma_biling_data = geo_data %>% filter(!area %in% c("","zz_other"))
 
@@ -261,44 +260,67 @@ legend_label = if_else(plot_language ==  "English",
 
 map_plot =  ggplot() + 
   # draw province map
-  geom_map(data = province_data %>% add_row(Percent_age_0_to_9 = 0), 
+  geom_map(data = province_data #%>% add_row(Percent_age_0_to_9 = 0)
+           , 
            map = province_coordinates,
            aes(map_id = id, 
                fill = Percent_age_0_to_9/100),
            color="white", 
            size=0.1)+ 
   # draw metropolitan areas overlaid
-geom_map(data = cma_biling_data %>% add_row(Percent_age_0_to_9 = 0) , 
+geom_map(data = cma_biling_data #%>% add_row(Percent_age_0_to_9 = 0) 
+         , 
          map = cma_coordinates,
          aes(map_id = id,
            #  group = group, 
             fill = Percent_age_0_to_9/100),
          color = "white", 
          size = 0.05)+ 
-      scale_fill_viridis(option = "D", begin = 0,
-                       labels = scales::percent_format(accuracy=1), 
-                       name=legend_label, 
-                       breaks = seq(0.0,0.35, by = 0.1)
-                       )+
-
-  # define limits for the plot (since province_coordinates and canada_map_areas uses same scale, can use either one...)
+      # define limits for the plot (since province_coordinates and canada_map_areas uses same scale, can use either one...)
   expand_limits(x = province_coordinates$long, 
                  y = province_coordinates$lat) + 
   theme_map(base_size = 15) + 
   coord_fixed(ratio=1) + 
-  theme(legend.position = c(0.71, 0.53))
+  theme(legend.position = c(0.71, 0.53)) 
+
+
+
+
+colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
+                       labels = scales::percent_format(accuracy=1), 
+                       name=legend_label, 
+                       breaks = seq(0.0,0.35, by = 0.1)
+                       )
+
+ 
  
  
 
 ```
 ## show map & save
 ```{r save_map}
-map_plot
+colour_map
 
-ggsave(here::here("03_output","01_figures","canada_map.png"), 
-        width = 10, 
-        height =7)
+ggsave(here::here("03_output","01_figures","canada_map.pdf"), 
+        width = 6.75, 
+        height = 4.725, dpi = 300, unit = "in")
 ```
+
+
+## greyscale map
+```{r}
+map_plot + scale_fill_gradient(low = "white", high = "black", 
+                       labels = scales::percent_format(accuracy=1), 
+                       name=legend_label, 
+                       breaks = seq(0.0,0.35, by = 0.1))
+
+ggsave(here::here("03_output","01_figures","canada_map_greyscale.pdf"), 
+        width = 6.75, 
+        height = 4.725, dpi = 300, unit = "in")
+```
+
+
+
 
 
 ## labels for biggest 10 cities (paper)
