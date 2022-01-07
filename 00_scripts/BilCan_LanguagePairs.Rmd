@@ -497,6 +497,11 @@ Table_2.3 =
     mutate(language_pair_collapsed = gsub("&", " & ", language_pair_collapsed),
            province = fct_expand(province, ""))
 
+# machine readable table 
+Table_2.3 %>%
+  write_excel_csv(here("03_output", "02_tables", "TableS1_language_pairs_by_area_for_computer.csv"))
+
+
 # silly formatting changes
 
 Table_2.3$area[duplicated(Table_2.3$area)] <- ""
