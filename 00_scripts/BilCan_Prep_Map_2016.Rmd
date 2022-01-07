@@ -43,6 +43,25 @@ library(spdplyr) # the `dplyr` counterpart for shapes
 library(rmapshaper) # the package that allows geo shape transformation
 ```
 
+# sebs shape file
+```{r}
+unzip(zipfile = here("02_map_data/recombined_shape_files.zip"), exdir =  here("02_map_data/simplified_census_map_2016"))
+
+canada_census_2016 <- readOGR(dsn = here("02_map_data","simplified_census_map_2016",
+                            "recombined_shape_files.shp"),
+                      layer = "recombined_shape_files",
+                      use_iconv = TRUE, 
+                      encoding = "UTF-8")
+# make a simpler dataframe
+canada_census_2016_df <- fortify(canada_census_2016, 
+                        region="name")
+
+# save for next script
+export(canada_census_2016_df, file = here("02_map_data/simplified_map_data.Rdata")) 
+
+```
+
+
 
 ## load census metropolitan area map data
 CMA = census metropolitain area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
