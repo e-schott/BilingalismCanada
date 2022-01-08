@@ -53,8 +53,151 @@ library(rio) # easier loading & saving
 devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
  
 ```
+# merge geo_data and map data
+```{r}
+geo_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
+
+northern_data = data.frame(province= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
+
+provinces_with_no_cma = c("Newfoundland and Labrador", "Prince Edward Island", "Northern Canada")
+
+geo_data  = geo_data %>% full_join(northern_data) %>%
+  mutate(type_data = ifelse(area == "", "province", "area")) %>%
+  select(-id, -country) %>% 
+  filter(type_data  != "province" | province %in% provinces_with_no_cma )
+
+```
+
+# import simplified map 
+```{r}
+province_names = geo_data %>%  distinct(province) %>% pull(province)
+cma_names = geo_data %>% filter(!area %in% c("", "zz_other")) %>% pull(area)
+
+map_coordinates <- import(here("02_map_data/simplified_map_data.Rdata")) %>%
+  mutate(type = case_when( id %in% province_names ~ "province",
+                           id %in% cma_names ~ "cma",
+                           TRUE ~ "match failed"
+                           ))
+
+```
 
 
+
+## prepare matching census data to  map data
+```{r}
+cma_census_labels = map_coordinates %>%  
+  filter(type != "province") %>%
+  group_by(id) %>% 
+  summarize(
+  # y
+  long = mean(long), 
+  # x 
+  lat = mean(lat)) 
+
+# try matching the census area names to the census map data (in the small dataframe that contains only one row per cma, for efficiency)
+attempted_matching = stringdist_left_join(geo_data %>% filter(type_data != "province", area != "zz_other"), 
+                             cma_census_labels , 
+                            by = c("area" = "id"),
+                             distance_col = NULL)
+
+
+```
+### adjust labels for non-matching CMAs
+
+```{r troubleshoot_merging}
+# fix the ones where multiple cities are combined into one metropolitain area (except for Ottawa-Gatineau, which can be treated as single city but split across two provinces)
+dict_map = attempted_matching %>% 
+  select(province, area, id) %>% 
+  # keep only those where matching failed
+    filter(is.na(id), area != "Ottawa – Gatineau") %>%
+  separate(col = area, into = c("area1", "area2", "area3"), 
+           remove = F, sep =c(" - | – ")) %>% 
+  pivot_longer(cols = area1:area3, values_to = "area_split_up") %>%
+  select(-id, -name) %>%
+  filter(!is.na(area_split_up))
+ 
+
+# add the split up cities to the dataframe
+geo_data = geo_data %>% 
+   mutate(area_for_merging = case_when(
+    province == "Quebec" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (partie du QuÃ©bec / Quebec part)",
+    province == "Ontario" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (Ontario part / partie de l'Ontario)	",
+  #  area == "Greater Sudbury" ~ "Greater Sudbury / Grand Sudbury",
+   # area == "Abbotsford" ~ "Abbotsford - Mission",
+    TRUE ~ area
+  ))
+
+```
+
+# merge for real
+
+```{r}
+# try matching again, to see if anything else fails?
+geo_data = geo_data %>% 
+    stringdist_left_join(cma_census_labels ,
+                          by =c("area_for_merging" = "id"), 
+                          distance_col = NULL) 
+
+failed_merging = geo_data %>% 
+  select(province, area, id, type_data) %>% 
+  # keep only those where matching failed
+  filter(is.na(id) | area == "Ottawa", type_data == "area", area != "zz_other") 
+
+# if there are any rows in failed_merging, stop and check again which ones failed & fix them
+stopifnot(nrow(failed_merging)==0 )
+
+
+
+geo_data = geo_data %>%
+  mutate(id = ifelse(is.na(id), province, id ))
+
+```
+
+
+```{r}
+plot_language = "English"
+
+legend_label = if_else(plot_language ==  "English",
+                       "Rates of child\nhome bilingualism",
+                       "Pourcentage des \nenfants \nbilingues")
+
+
+map_plot =  ggplot() + 
+  # draw province map
+  geom_map(data = geo_data 
+           , 
+           map = map_coordinates,
+           aes(map_id = id, 
+               fill = Percent_age_0_to_9/100),
+           color="white", 
+           size=0.05)+ 
+#   # draw metropolitan areas overlaid
+# geom_map(data = cma_biling_data 
+#          , 
+#          map = cma_coordinates,
+#          aes(map_id = id,
+#            #  group = group, 
+#             fill = Percent_age_0_to_9/100),
+#          color = "white", 
+#          size = 0.05)+ 
+      # define limits for the plot (since province_coordinates and canada_map_areas uses same scale, can use either one...)
+  expand_limits(x = map_coordinates$long, 
+                 y = map_coordinates$lat) + 
+ theme_map(base_size = 15) + 
+  coord_fixed(ratio=1) + 
+  theme(legend.position = c(0.71, 0.53)) 
+
+
+
+
+colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
+                       labels = scales::percent_format(accuracy=1), 
+                      name=legend_label, 
+                       breaks = seq(0.0,0.35, by = 0.1)
+                       )
+
+colour_map 
+```
 ## load census metropolitan area map data
 CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
 
@@ -67,12 +210,7 @@ cma_coordinates <- cma_coordinates %>%
   rename(id = area_maps) %>%
   relocate(long, lat, .before = id)
 
-cma_census_labels = cma_coordinates %>%  group_by(id) %>% 
-  summarize(
-  # y
-  long = mean(long), 
-  # x 
-  lat = mean(lat)) 
+
 
 ```
 ## read census province map
@@ -144,7 +282,7 @@ dict_map = attempted_matching %>%
   # keep only those where matching failed
   filter(is.na(id) & area != "Ottawa – Gatineau") %>%
   separate(col = area, into = c("area1", "area2", "area3"), 
-           remove = F, sep =c(" - | – ")) %>% 
+           remove = F, sep =c(" - | – ")) #%>% 
   pivot_longer(cols = area1:area3, values_to = "area_split_up") %>%
   select(-id, -name) %>%
   filter(!is.na(area_split_up))
