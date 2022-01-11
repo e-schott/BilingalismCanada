@@ -57,13 +57,16 @@ devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
 ```{r}
 geo_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
 
-northern_data = data.frame(province= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
+northern_data = data.frame(province_old = rep("Northern Canada",3), province = c("Yukon", "Northwest Territories", "Nunavut"))
 
-provinces_with_no_cma = c("Newfoundland and Labrador", "Prince Edward Island", "Northern Canada")
+provinces_with_no_cma = c("Newfoundland and Labrador", "Prince Edward Island", "Yukon", "Northwest Territories", "Nunavut")
 
-geo_data  = geo_data %>% full_join(northern_data) %>%
-  mutate(type_data = ifelse(area == "", "province", "area")) %>%
-  select(-id, -country) %>% 
+geo_data  = geo_data %>% 
+  rename(province_old = province) %>%
+  full_join(northern_data) %>% 
+  mutate(province = ifelse(is.na(province), province_old, province),
+         type_data = ifelse(area == "", "province", "area")) %>%
+  select(-province_old,  -country) %>% 
   filter(type_data  != "province" | province %in% provinces_with_no_cma )
 
 ```
