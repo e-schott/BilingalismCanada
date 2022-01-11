@@ -85,7 +85,6 @@ map_coordinates <- import(here("02_map_data/simplified_map_data.Rdata")) %>%
 ```
 
 
-
 ## prepare matching census data to  map data
 ```{r}
 cma_census_labels = map_coordinates %>%  
@@ -167,32 +166,27 @@ legend_label = if_else(plot_language ==  "English",
 
 map_plot =  ggplot() + 
   # draw province map
-  geom_map(data = geo_data 
-           , 
+  geom_map(data = geo_data %>% add_row(Percent_age_0_to_9 = 0), 
            map = map_coordinates,
            aes(map_id = id, 
                fill = Percent_age_0_to_9/100),
            color="white", 
            size=0.05)+ 
-#   # draw metropolitan areas overlaid
-# geom_map(data = cma_biling_data 
-#          , 
-#          map = cma_coordinates,
-#          aes(map_id = id,
-#            #  group = group, 
-#             fill = Percent_age_0_to_9/100),
-#          color = "white", 
-#          size = 0.05)+ 
       # define limits for the plot (since province_coordinates and canada_map_areas uses same scale, can use either one...)
   expand_limits(x = map_coordinates$long, 
-                 y = map_coordinates$lat) + 
- theme_map(base_size = 15) + 
+                y = map_coordinates$lat) + 
+ theme_map(base_size = 15) +
   coord_fixed(ratio=1) + 
   theme(legend.position = c(0.71, 0.53)) 
 
+ 
 
 
 
+
+```
+# save as odf
+```{r}
 colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
                        labels = scales::percent_format(accuracy=1), 
                       name=legend_label, 
@@ -200,7 +194,26 @@ colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
                        )
 
 colour_map 
+
+
+ggsave(here::here("03_output","01_figures","canada_map_simplified.pdf"), 
+        width = 6.75, 
+        height = 4.725, dpi = 300, unit = "in")
 ```
+
+
+## greyscale map
+```{r}
+map_plot + scale_fill_gradient(low = "white", high = "grey27", 
+                       labels = scales::percent_format(accuracy = 1), 
+                       name=legend_label, 
+                       breaks = seq(0.0,0.35, by = 0.1))
+
+ggsave(here::here("03_output","01_figures","canada_map_greyscale_simplified.pdf"), 
+        width = 6.75, 
+        height = 4.725, dpi = 300, unit = "in")
+```
+
 ## load census metropolitan area map data
 CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
 
