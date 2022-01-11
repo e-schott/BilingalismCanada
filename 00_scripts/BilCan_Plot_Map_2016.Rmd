@@ -70,11 +70,17 @@ geo_data  = geo_data %>%
   filter(type_data  != "province" | province %in% provinces_with_no_cma )
 
 ```
-
-# import simplified map 
+# create label variables
+CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
 ```{r}
 province_names = geo_data %>%  distinct(province) %>% pull(province)
 cma_names = geo_data %>% filter(!area %in% c("", "zz_other")) %>% pull(area)
+
+```
+
+
+# import simplified map from prep_map
+```{r}
 
 map_coordinates <- import(here("02_map_data/simplified_map_data.Rdata")) %>%
   mutate(type = case_when( id %in% province_names ~ "province",
@@ -124,9 +130,7 @@ geo_data = geo_data %>%
    mutate(area_for_merging = case_when(
     province == "Quebec" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (partie du QuÃ©bec / Quebec part)",
     province == "Ontario" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (Ontario part / partie de l'Ontario)	",
-  #  area == "Greater Sudbury" ~ "Greater Sudbury / Grand Sudbury",
-   # area == "Abbotsford" ~ "Abbotsford - Mission",
-    TRUE ~ area
+     TRUE ~ area
   ))
 
 ```
@@ -156,6 +160,11 @@ geo_data = geo_data %>%
 ```
 
 
+
+
+
+# Plot Maps
+## default Canada map without labels
 ```{r}
 plot_language = "English"
 
@@ -185,7 +194,7 @@ map_plot =  ggplot() +
 
 
 ```
-# save as odf
+## plot in colour, save as pdf
 ```{r}
 colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
                        labels = scales::percent_format(accuracy=1), 
@@ -196,282 +205,21 @@ colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
 colour_map 
 
 
-ggsave(here::here("03_output","01_figures","canada_map_simplified.pdf"), 
-        width = 6.75, 
-        height = 4.725, dpi = 300, unit = "in")
+
 ```
 
 
-## greyscale map
+## greyscale map, save as pdf
 ```{r}
-map_plot + scale_fill_gradient(low = "white", high = "grey27", 
+greyscale_map = map_plot + scale_fill_gradient(low = "white", high = "grey27", 
                        labels = scales::percent_format(accuracy = 1), 
                        name=legend_label, 
                        breaks = seq(0.0,0.35, by = 0.1))
 
-ggsave(here::here("03_output","01_figures","canada_map_greyscale_simplified.pdf"), 
-        width = 6.75, 
-        height = 4.725, dpi = 300, unit = "in")
-```
-
-## load census metropolitan area map data
-CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
-
-the map files are downloaded from the census website. If you have any questions to what the files contain, there is an explanation pdf that comes with the download. 
-```{r load_cma_maps}
-
-cma_coordinates <- import(here("02_map_data/cma_map_data.Rdata")) 
-
-cma_coordinates <- cma_coordinates %>%
-  rename(id = area_maps) %>%
-  relocate(long, lat, .before = id)
-
-
-
-```
-## read census province map
-
-Useful  info on canadian map data in R here: https://tengl.net/blog/2020/1/7/drawing-canada-maps-in-r
-```{r read_province_maps}
-province_coordinates  <- import( here("02_map_data/province_map_data.Rdata")) 
-
 
 ```
 
 
-## load census language data
-```{r read_census_data}
-geo_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
-province_data = geo_data %>% 
-  filter(area == "zz_other" | province %in% c("Northern Canada", "Prince Edward Island", "Newfoundland and Labrador") ) %>% select(-area)
-
-cma_biling_data = geo_data %>% filter(!area %in% c("","zz_other"))
-
-```
-
-
-
-
-# Match  census language data & map data
-## province-level data
-### prepare province map ids for matching
-```{r prepare_matching}
-province_coordinates = province_coordinates  %>%
-  separate(col = id, into = c("id", "province_fr"), remove = T, sep = " \\/ ")
-
-province_census_labels = province_coordinates %>% distinct(id)
-
-
-# need to check here that province labels match
-
-```
-
-### split up northern canada into map-appropriate territories
-```{r prep_northern}
-northern_data = data.frame(province= rep("Northern Canada",3), id = c("Yukon", "Northwest Territories", "Nunavut"))
-
-province_data  = province_data %>% full_join(northern_data) %>%
-  mutate(id = ifelse(is.na(id), as.character(province), as.character(id)))
-
-
-
-```
-
-
-## prepare matching census data to cma map data
-```{r}
-# try matching the census area names to the census map data (in the small dataframe that contains only one row per cma, for efficiency)
-attempted_matching = stringdist_left_join(cma_biling_data, 
-                             cma_census_labels , 
-                             by =c("area" = "id"), 
-                             distance_col = NULL)
-
-
-```
-### adjust labels for non-matching CMAs
-
-```{r troubleshoot_merging}
-# fix the ones where multiple cities are combined into one metropolitain area (except for Ottawa-Gatineau, which can be treated as single city but split across two provinces)
-## LK: removed names_to = NULL from pivot_longer, because it was causing an error, and I couldn't figure out why
-dict_map = attempted_matching %>% 
-  select(province, area, id) %>% 
-  # keep only those where matching failed
-  filter(is.na(id) & area != "Ottawa – Gatineau") %>%
-  separate(col = area, into = c("area1", "area2", "area3"), 
-           remove = F, sep =c(" - | – ")) #%>% 
-  pivot_longer(cols = area1:area3, values_to = "area_split_up") %>%
-  select(-id, -name) %>%
-  filter(!is.na(area_split_up))
- 
-
-# add the split up cities to the dataframe
-cma_biling_data = cma_biling_data %>% 
-  left_join(dict_map) %>% 
-  rename(area_long_name = area) %>% 
-  mutate(area = ifelse(is.na(area_split_up), 
-                       as.character(area_long_name),
-                       as.character(area_split_up))) %>% 
-  select(-area_long_name, -area_split_up)
-
-```
-
-### merge census data and map data
-```{r merge_cma}
-# these we need to fix by hand  
-
-cma_biling_data = cma_biling_data %>%
-  mutate(area_for_merging = case_when(
-    province == "Quebec" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (partie du QuÃ©bec / Quebec part)",
-    province == "Ontario" & area == "Ottawa – Gatineau" ~ "Ottawa - Gatineau (Ontario part / partie de l'Ontario)	",
-    area == "Greater Sudbury" ~ "Greater Sudbury / Grand Sudbury",
-    area == "Abbotsford" ~ "Abbotsford - Mission",
-    TRUE ~ area
-  ))
-
-
-
-```
-
-### check that merging was successful
-If this code fails, the script will stop
-```{r check_merging}
-# try matching again, to see if anything else fails?
-cma_biling_data = cma_biling_data %>% 
-    stringdist_left_join(cma_census_labels ,
-                          by =c("area_for_merging" = "id"), 
-                          distance_col = NULL) 
-
-failed_merging = cma_biling_data %>% 
-  select(province, area, id) %>% 
-  # keep only those where matching failed
-  filter(is.na(id) | area == "Ottawa") 
-
-# if there are any rows in failed_merging, stop and check again which ones failed & fix them
-stopifnot(nrow(failed_merging)==0 )
-
-
-
-```
-
-
-
-## keep only metropolitan areas the census has data for 
-create a df with locations of labels (by default, at the mean latitude and longitude for the city/cma) 
-```{r filter_labels}
-# lee
-
-cma_census_labels = cma_census_labels %>% 
-  # keep only cities we have bilingual data on
-  filter(id %in% unique(cma_biling_data$id)) 
-```
-
-
-
-# Adjust label names, position
-
-```{r fix_labels}
-
-
-
-#add_labels = tibble(area_long_name = "Grand Sudbury", lat = 1250604.3, long = 7085883 )
-GTA_cities = c("Brantford","Kitchener – Cambridge – Waterloo",  "Hamilton",  "Peterborough", 
- "St. Catharines – Niagara", "Toronto")
-
-
-
-cma_labels_clean = cma_census_labels %>%
-  # create an new variable, so we can make a short area variable if needed (don't want the super long labels)
-  rename(area_long_name = id) %>% 
-  # clean up city label (short labels)
-  mutate(city = ifelse(area_long_name == "Ottawa – Gatineau", "Ottawa", area_long_name ),
-         # adjust the position of Toronto, , Ottawa
-       long_adj = case_when(
-    city %in% c("Toronto", "Ottawa")~ long + 100000,
-    TRUE ~ long),
-    # move label for vancouver a bit around for optimum position
-    lat_adj  = ifelse(city == "Vancouver", lat - 150000, lat),
-    # create GTA variable so we can adjust the labels separately
-    GTA = case_when(
-      area_long_name %in% GTA_cities[1:2] ~ "GTA-south",
-      area_long_name %in% GTA_cities ~ "GTA-west",
-      TRUE ~NA_character_),
-    label_linebreak = gsub(" – ","\n",area_long_name)
-    )
-  
-
-```
-
-# Plot Maps
-## default Canada map without labels
-```{r prepare_map}
-plot_language = "English"
-
-legend_label = if_else(plot_language ==  "English",
-                       "Rates of child\nhome bilingualism",
-                       "Pourcentage des \nenfants \nbilingues")
-
-
-
-map_plot =  ggplot() + 
-  # draw province map
-  geom_map(data = province_data #%>% add_row(Percent_age_0_to_9 = 0)
-           , 
-           map = province_coordinates,
-           aes(map_id = id, 
-               fill = Percent_age_0_to_9/100),
-           color="white", 
-           size=0.1)+ 
-  # draw metropolitan areas overlaid
-geom_map(data = cma_biling_data #%>% add_row(Percent_age_0_to_9 = 0) 
-         , 
-         map = cma_coordinates,
-         aes(map_id = id,
-           #  group = group, 
-            fill = Percent_age_0_to_9/100),
-         color = "white", 
-         size = 0.05)+ 
-      # define limits for the plot (since province_coordinates and canada_map_areas uses same scale, can use either one...)
-  expand_limits(x = province_coordinates$long, 
-                 y = province_coordinates$lat) + 
-  theme_map(base_size = 15) + 
-  coord_fixed(ratio=1) + 
-  theme(legend.position = c(0.71, 0.53)) 
-
-
-
-
-colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
-                       labels = scales::percent_format(accuracy=1), 
-                       name=legend_label, 
-                       breaks = seq(0.0,0.35, by = 0.1)
-                       )
-
- 
- 
- 
-
-```
-## show map & save
-```{r save_map}
-colour_map
-
-ggsave(here::here("03_output","01_figures","canada_map.pdf"), 
-        width = 6.75, 
-        height = 4.725, dpi = 300, unit = "in")
-```
-
-
-## greyscale map
-```{r}
-map_plot + scale_fill_gradient(low = "white", high = "black", 
-                       labels = scales::percent_format(accuracy=1), 
-                       name=legend_label, 
-                       breaks = seq(0.0,0.35, by = 0.1))
-
-ggsave(here::here("03_output","01_figures","canada_map_greyscale.pdf"), 
-        width = 6.75, 
-        height = 4.725, dpi = 300, unit = "in")
-```
 
 
 
@@ -481,33 +229,64 @@ ggsave(here::here("03_output","01_figures","canada_map_greyscale.pdf"),
 Largest city in each province (-PEI, -NL) selected, then added additional cities by largest pop across Canada to get to 10
 
 ```{r ten_cities}
-ten_cities_labels = c( "Calgary", "Edmonton",  "Halifax", "Vancouver", "Winnipeg", "Moncton", "Toronto", "Ottawa - Gatineau (Ontario part / partie de l'Ontario)", "Montréal", "Saskatoon")
+ten_cities_labels = c( "Calgary", "Edmonton",  "Halifax", "Vancouver", "Winnipeg", "Moncton - Saint John", "Toronto", "Ottawa - Gatineau (Ontario part / partie de l'Ontario)", "Montréal", "Regina - Saskatoon")
 set.seed(1)
-ten_cities_labels <- cma_labels_clean %>% 
-  filter(area_long_name %in% ten_cities_labels)
+labels_df <- cma_census_labels %>% 
+  filter(id %in% ten_cities_labels) %>%
+  mutate(id = case_when(
+              id == "Ottawa - Gatineau (Ontario part / partie de l'Ontario)"~ "Ottawa -\nGatineau",
+              id == "Regina - Saskatoon" ~ "Regina -\nSaskatoon",
+              TRUE ~ id),
+         lat_adjustment = case_when(
+           id %in% c( "Vancouver", "Winnipeg") ~ -307210,
+           id  %in% c( "Montréal", "Toronto", "Halifax") ~ -150000,
+           id == "Ottawa -\nGatineau"~ 500000,
+           id  == "Calgary" ~ -437210,
+           TRUE ~ 0
+           ),
+         long_adjustment = case_when(
+           id  %in% c( "Montréal", "Toronto") ~ 601220,
+           id %in% c("Ottawa -\nGatineau","Vancouver") ~ -500000,
+           TRUE ~ 0
+         ))
 
-ten_cities_labels[ten_cities_labels$area_long_name == "Ottawa - Gatineau (Ontario part / partie de l'Ontario)", "city"] <- "Ottawa - Gatineau"
 
-#ggrepel was putting some labels in strange places, so manually create label for Ottawa
-ottawa_label <- data.frame(
-   x = 7200000,
-   y = 1520000,
-   label = "Ottawa - Gatineau"
-)
-
-map_plot + 
-geom_label_repel(data = filter(ten_cities_labels),
-                 aes(x= long, y= lat, label = city),
-                 size          = 3,
-                 segment.size  = 1,
-                 segment.color = "gray50",
-                 direction     = "both",
-                 vjust         = 1) #+
-  annotate("segment", x = 7200000, xend = 7474536, y = 1505000, yend = 1179830.6,  colour = "gray50")# +
-#  geom_label(data = ottawa_label, aes(x = x, y = y, label = label), size = 3)
-
-ggsave(here::here("03_output","01_figures","ten_cities_labels.png"), width = 9, height =7)
 
 ```
 
+
+# label map with colour
+```{r}
+
+colour_map + 
+geom_label_repel(data = labels_df,
+                 aes(x= long, y= lat, label = id),
+                 size          = 3,
+                 segment.size  = 1,
+                 segment.color = "gray50",
+                 vjust         = 1,
+                 nudge_y = labels_df$lat_adjustment,
+                 nudge_x = labels_df$long_adjustment) 
+
+ggsave(here::here("03_output","01_figures","canada_map_with_labels_colour.pdf"), 
+        width = 6.75, 
+        height = 4.725, dpi = 300, unit = "in")
+```
+# greyscale map with labels
+```{r}
+greyscale_map + 
+geom_label_repel(data = labels_df,
+                 aes(x= long, y= lat, label = id),
+                 size          = 3,
+                 segment.size  = 1,
+                 segment.color = "black",
+                 box.padding = 0.3,
+                 vjust         = 1,
+                 nudge_y = labels_df$lat_adjustment,
+                 nudge_x = labels_df$long_adjustment) 
+
+ggsave(here::here("03_output","01_figures","canada_map_with_labels_grey.pdf"), 
+        width = 6.75, 
+        height = 4.725, dpi = 300, unit = "in")
+```
 
