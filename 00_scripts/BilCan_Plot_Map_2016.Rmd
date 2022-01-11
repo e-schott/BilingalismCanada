@@ -236,19 +236,26 @@ labels_df <- cma_census_labels %>%
   mutate(id = case_when(
               id == "Ottawa - Gatineau (Ontario part / partie de l'Ontario)"~ "Ottawa -\nGatineau",
               id == "Regina - Saskatoon" ~ "Regina -\nSaskatoon",
+            #  id == "Moncton - Saint John" ~ "Moncton -\nSaint John",
               TRUE ~ id),
-         lat_adjustment = case_when(
-           id %in% c( "Vancouver", "Winnipeg") ~ -307210,
-           id  %in% c( "Montréal", "Toronto", "Halifax") ~ -150000,
-           id == "Ottawa -\nGatineau"~ 500000,
-           id  == "Calgary" ~ -437210,
-           TRUE ~ 0
-           ),
          long_adjustment = case_when(
-           id  %in% c( "Montréal", "Toronto") ~ 601220,
-           id %in% c("Ottawa -\nGatineau","Vancouver") ~ -500000,
+           id  %in% c( "Montréal", "Toronto") ~ -51220,
+           id == "Halifax" ~ 30000,
+           id %in% c("Ottawa -\nGatineau") ~ -600000,
+           id == "Vancouver" ~ -338548,
+           id == "Regina -\nSaskatoon" ~ +10000,
+          id == "Moncton - Saint John" ~ -100000,
            TRUE ~ 0
-         ))
+         ),
+         lat_adjustment = case_when(
+           id %in% c( "Vancouver", "Winnipeg",  "Moncton - Saint John") ~ -237210,
+           id  %in% c( "Montréal", "Toronto") ~ -200000,
+           id == "Ottawa -\nGatineau"~ 700000,
+           id == "Edmonton" ~ 300000,
+           id %in% c("Calgary") ~ -437210,
+           TRUE ~ 0
+           )
+         )
 
 
 
@@ -259,14 +266,18 @@ labels_df <- cma_census_labels %>%
 ```{r}
 
 colour_map + 
-geom_label_repel(data = labels_df,
+geom_text_repel(data = labels_df,
                  aes(x= long, y= lat, label = id),
                  size          = 3,
                  segment.size  = 1,
                  segment.color = "gray50",
                  vjust         = 1,
+                 nudge_x = labels_df$long_adjustment,
                  nudge_y = labels_df$lat_adjustment,
-                 nudge_x = labels_df$long_adjustment) 
+                 color = "black",     # text color
+                 bg.color = "white", # shadow color
+                 bg.r = 0.15          # shadow radius
+                 ) 
 
 ggsave(here::here("03_output","01_figures","canada_map_with_labels_colour.pdf"), 
         width = 6.75, 
@@ -275,7 +286,7 @@ ggsave(here::here("03_output","01_figures","canada_map_with_labels_colour.pdf"),
 # greyscale map with labels
 ```{r}
 greyscale_map + 
-geom_label_repel(data = labels_df,
+geom_text_repel(data = labels_df,
                  aes(x= long, y= lat, label = id),
                  size          = 3,
                  segment.size  = 1,
@@ -283,7 +294,11 @@ geom_label_repel(data = labels_df,
                  box.padding = 0.3,
                  vjust         = 1,
                  nudge_y = labels_df$lat_adjustment,
-                 nudge_x = labels_df$long_adjustment) 
+                 nudge_x = labels_df$long_adjustment,
+                 color = "black",     # text color
+                bg.color = "white", # shadow color
+                 bg.r = 0.15          # shadow radius
+                ) 
 
 ggsave(here::here("03_output","01_figures","canada_map_with_labels_grey.pdf"), 
         width = 6.75, 
