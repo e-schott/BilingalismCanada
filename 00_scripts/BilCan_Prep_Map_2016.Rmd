@@ -43,19 +43,25 @@ library(spdplyr) # the `dplyr` counterpart for shapes
 library(rmapshaper) # the package that allows geo shape transformation
 ```
 
-# sebs shape file
-```{r}
-unzip(zipfile = here("02_map_data/recombined_shape_files.zip"), exdir =  here("02_map_data/simplified_census_map_2016"))
+# combined shape file
 
-canada_census_2016 <- readOGR(dsn = here("02_map_data","simplified_census_map_2016",
-                            "recombined_shape_files.shp"),
-                      layer = "recombined_shape_files",
+
+```{r}
+unzip(zipfile = here("02_map_data/recombined_shape_files_lambert.zip"), exdir =  here("02_map_data/simplified_census_map_2016_lambert"))
+
+canada_census_2016 <- readOGR(dsn = here("02_map_data","simplified_census_map_2016_lambert",
+                            "recombined_shape_files_lambert.shp"),
+                      layer = "recombined_shape_files_lambert",
                       use_iconv = TRUE, 
                       encoding = "UTF-8")
+
+st_crs(canada_census_2016) 
+
+
+
 # make a simpler dataframe
 canada_census_2016_df <- fortify(canada_census_2016, 
                         region="name")
-
 # save for next script
 export(canada_census_2016_df, file = here("02_map_data/simplified_map_data.Rdata")) 
 
@@ -91,7 +97,7 @@ canada_census_2016_cma <- readOGR(dsn = here("02_map_data","census_map_2016",
                       encoding = "UTF-8")
 
 
-
+st_crs(canada_census_2016_cma)
 
 
 
