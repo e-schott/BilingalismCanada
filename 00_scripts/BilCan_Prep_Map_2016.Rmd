@@ -44,8 +44,9 @@ library(rmapshaper) # the package that allows geo shape transformation
 ```
 
 # combined shape file
+Useful  info on canadian map data in R here: https://tengl.net/blog/2020/1/7/drawing-canada-maps-in-r
 
-
+the map files are downloaded from the census website. 
 ```{r}
 unzip(zipfile = here("02_map_data/recombined_shape_files_lambert.zip"), exdir =  here("02_map_data/simplified_census_map_2016_lambert"))
 
@@ -67,109 +68,5 @@ export(canada_census_2016_df, file = here("02_map_data/simplified_map_data.Rdata
 
 ```
 
-
-
-## load census metropolitan area map data
-CMA = census metropolitain area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
-
-the map files are downloaded from the census website. If you have any questions to what the files contain, there is an explanation pdf that comes with the download. 
-```{r load_cma_maps}
-
-
-
-if(!file.exists(here("02_map_data","census_map_2016","lcma000a16a_e.shp"))) {
-# grab the file from "Statistics Canada"
-# 2016 census, area areas only
-# see the pdf in map_data/census_map_2016 for more info
-download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lcma000b16a_e.zip", destfile=here("02_map_data/census_map_2016.zip"))
-unzip(zipfile = here("02_map_data/census_map_2016.zip"), exdir =  here("02_map_data/census_map_2016"))
-
-}
-
-# what layers do we have? you can use this to check
-#   ogrListLayers(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))
-# but there are none, so the shapefile is the layer
-
-canada_census_2016_cma <- readOGR(dsn = here("02_map_data","census_map_2016",
-                            "lcma000b16a_e.shp"),
-                      layer = "lcma000b16a_e",
-                      use_iconv = TRUE, 
-                      encoding = "UTF-8")
-
-
-st_crs(canada_census_2016_cma)
-
-
-
-
-```
-### other steps
-```{r}
-canada_census_2016_cma = ms_simplify(canada_census_2016_cma, sys = TRUE, keep= .1) #HK note: I was stuck here for a while, even after downloading everything. I had to restart RStudio to get it to work, so it could be worth some explanatory code here for getting everything to work together.
-# LK Note: Same as Hilary. Also didn't know I had to go through the command prompt, so that took a while
-
-
-
-cma_coordinates <- fortify(canada_census_2016_cma, region="CMANAME") %>%
-  rename(area_maps = "id")
-
-rm(canada_census_2016_cma)
-
-```
-### save output
-```{r}
-export(cma_coordinates, file = here("02_map_data/cma_map_data.Rdata")) 
-
-```
-
-
-
-## read census province map
-
-Useful  info on canadian map data in R here: https://tengl.net/blog/2020/1/7/drawing-canada-maps-in-r
-```{r read_province_maps}
-if(!file.exists(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))) {
-download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000b16a_e.zip", destfile=here("02_map_data/lpr_000a16a_e.zip"))
-#download.file("http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000a16a_e.zip",
- #             destfile=here("02_map_data/lpr_000a16a_e.zip"))
-
-unzip(here("02_map_data/lpr_000a16a_e.zip"), exdir = here("02_map_data","province_map_2016"))
-
-
-}
-
-
-
-
-
-```
-### other steps
-```{r}
-# what layers do we have? you can use this to check
-#   ogrListLayers(here("02_map_data","province_map_2016","lpr_000b16a_e.shp"))
-# but there are none, so the shapefile is the layer
-
-province_census_2016 <- readOGR(here::here("02_map_data",
-                             "province_map_2016",
-                             "lpr_000b16a_e.shp"),
-                        layer = "lpr_000b16a_e",
-                        use_iconv = TRUE, encoding = "UTF-8")
-
-
-
-province_coordinates <- fortify(province_census_2016, 
-                        region="PRNAME")
-# remove big map object to ease load on memory 
-rm(province_census_2016)
-
-```
-
-
-
-## save output
-```{r}
-export(province_coordinates, file = here("02_map_data/province_map_data.Rdata")) 
-
-```
 
 
