@@ -236,9 +236,10 @@ province_language_pair_data = province_language_pair_data %>%
 
 ## write table to csv
 ```{r}
-province_language_pair_data$province[duplicated(province_language_pair_data$province)] <- ""
+table_2.2 = province_language_pair_data
+table_2.2$province[duplicated(table_2.2$province)] <- ""
 
-province_language_pair_data %>%
+table_2.2 %>%
   write_csv(here("03_output", "02_tables", "Table2.2_language_pairs_by_province.csv"))
 
 ```
@@ -358,7 +359,7 @@ canada_language_pair_data =  full_join(canada_by_age_wide, canada_ages_combined)
 ```
 ## write to csv
 ```{r}
-canada_language_pair_data %>%
+table_2.1 = canada_language_pair_data %>%
   arrange(language_pair_type) %>%
   select(language_pair_collapsed, 
          percent_bilingual_children_age_0_to_4,
@@ -366,7 +367,8 @@ canada_language_pair_data %>%
          percent_bilingual_children_age_0_to_9,
          percent_all_children_age_0_to_4,
          percent_all_children_age_5_to_9,
-         percent_all_children_age_0_to_9 ) %>%
+         percent_all_children_age_0_to_9 ) 
+table_2.1 %>%
   write_excel_csv(here("03_output", "02_tables", "Table2.1_language_pairs_Canada.csv"))
 ```
 
@@ -492,24 +494,36 @@ lang_pair_by_area_wide = lang_pair_by_area %>%
 
 ## for paper
 ```{r}
-Table_2.3 = 
+lang_pair_by_area_wide = 
   lang_pair_by_area_wide %>%
     mutate(language_pair_collapsed = gsub("&", " & ", language_pair_collapsed),
            province = fct_expand(province, ""))
 
-# machine readable table 
-Table_2.3 %>%
-  write_excel_csv(here("03_output", "02_tables", "TableS1_language_pairs_by_area_for_computer.csv"))
 
 
 # silly formatting changes
-
-Table_2.3$area[duplicated(Table_2.3$area)] <- ""
-Table_2.3$province[duplicated(Table_2.3$province)] <- ""
-Table_2.3 %>%
+table_2.3 = lang_pair_by_area_wide
+table_2.3$area[duplicated(table_2.3$area)] <- ""
+table_2.3$province[duplicated(table_2.3$province)] <- ""
+table_2.3 %>%
   write_excel_csv(here("03_output", "02_tables", "TableS1_language_pairs_by_area.csv"))
 
 ```
+
+## for dash app: machine readable table
+```{r}
+# machine readable table 
+combined_table = lang_pair_by_area_wide %>% mutate(type = "cma", region = area) %>%
+  full_join(province_language_pair_data %>% mutate(type = "province", region = province) %>% rename(language_pair_collapsed = language_pair)) %>%
+  full_join(table_2.1 %>% mutate(type = "canada", region = "Canada")) %>%
+  relocate(type, region, .before = language_pair_collapsed) %>%
+  relocate(province, area, .after= percent_all_children_age_0_to_9) 
+
+combined_table %>%
+  write_excel_csv(here("03_output", "02_tables", "Tables_language_pairs_for_computer.csv"))
+
+```
+
 
 
 # the end
