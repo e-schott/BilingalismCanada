@@ -184,9 +184,9 @@ map_plot =  ggplot() +
       # define limits for the plot (since province_coordinates and canada_map_areas uses same scale, can use either one...)
   expand_limits(x = map_coordinates$long, 
                 y = map_coordinates$lat) + 
- theme_map(base_size = 15) +
+ theme_map(base_size = 12) +
   coord_fixed(ratio=1) + 
-  theme(legend.position = c(0.71, 0.53)) 
+  theme(legend.position = c(0.71, 0.53), plot.margin=grid::unit(c(0,0,0,0), "mm")) +labs(x=NULL, y=NULL)
 
  
 
@@ -244,7 +244,7 @@ labels_df <- cma_census_labels %>%
            id %in% c("Ottawa -\nGatineau") ~ -600000,
            id == "Vancouver" ~ -338548,
            id == "Regina -\nSaskatoon" ~ +10000,
-          id == "Moncton - Saint John" ~ -100000,
+         id == "Moncton - Saint John" ~ -100000,
            TRUE ~ 0
          ),
          lat_adjustment = case_when(
@@ -268,7 +268,7 @@ labels_df <- cma_census_labels %>%
 colour_map + 
 geom_text_repel(data = labels_df,
                  aes(x= long, y= lat, label = id),
-                 size          = 3,
+                 size          = 3.5,
                  segment.size  = 1,
                  segment.color = "gray50",
                  vjust         = 1,
@@ -281,14 +281,14 @@ geom_text_repel(data = labels_df,
 
 ggsave(here::here("03_output","01_figures","canada_map_with_labels_colour.pdf"), 
         width = 6.75, 
-        height = 4.725, dpi = 300, unit = "in")
+        height =5.8, dpi = 300, unit = "in")
 ```
 # greyscale map with labels
 ```{r}
 greyscale_map + 
 geom_text_repel(data = labels_df,
                  aes(x= long, y= lat, label = id),
-                 size          = 3,
+                 size          = 4,
                  segment.size  = 1,
                  segment.color = "black",
                  box.padding = 0.3,
@@ -302,6 +302,6 @@ geom_text_repel(data = labels_df,
 
 ggsave(here::here("03_output","01_figures","canada_map_with_labels_grey.pdf"), 
         width = 6.75, 
-        height = 4.725, dpi = 300, unit = "in")
+        height = 5.8, dpi = 300, unit = "in")
 ```
 
