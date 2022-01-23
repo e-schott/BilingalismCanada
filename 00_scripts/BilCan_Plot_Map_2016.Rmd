@@ -46,7 +46,7 @@ library(rio) # easier loading & saving
 ```
 
 # define variables
-```{r}
+```{r definitions}
 # some provinces/territories don't have any info on metropolitain areas. Need to treat them differently when it comes to some of the plotting steps, so create variable
 provinces_with_no_cma = c("Newfoundland and Labrador", "Prince Edward Island", "Yukon", "Northwest Territories", "Nunavut")
 
@@ -58,7 +58,7 @@ ten_cities_labels = c( "Calgary", "Edmonton",  "Halifax", "Vancouver", "Winnipeg
 
 ```
 
-# load map data
+# load map data {.tabset}
 ## load map theme
 ```{r load_map_theme}
 # decent, uncluttered map theme
@@ -74,7 +74,7 @@ the map files are downloaded from the census website, and then preprocessed in p
 - combine the CMA and province shape files 
 - simplify the shapes using https://mapshaper.org/
 
-```{r}
+```{r load_map_file}
 unzip(zipfile = here("02_map_data/recombined_shape_files_lambert.zip"), exdir =  here("02_map_data/simplified_census_map_2016_lambert"))
 
 canada_census_2016 <- readOGR(dsn = here("02_map_data","simplified_census_map_2016_lambert",
@@ -83,36 +83,19 @@ canada_census_2016 <- readOGR(dsn = here("02_map_data","simplified_census_map_20
                       use_iconv = TRUE, 
                       encoding = "UTF-8")
 
-st_crs(canada_census_2016) 
-
-
+# to look at coordinate system
+#st_crs(canada_census_2016) 
 
 # make a simpler dataframe
 map_coordinates <- fortify(canada_census_2016, 
                         region="name")
 # there is a minor warning about overlapping map lines, is okay to ignore 
 
-
-
 ```
-
-
-## add type variable to map data
-```{r}
-
-map_coordinates %<>%
-  mutate(type = case_when( id %in% province_names ~ "province",
-                           id %in% cma_names ~ "cma",
-                           TRUE ~ "match failed"
-                           ))
-
-```
-
-
 # load bilingualism percentages data frame
 `geo_data` is the output of the `BilCan_Geo_Percentages_2016.Rmd` script. 
 Need extra step for Northern Canada, which is refered to as the individual territories in the map 
-```{r}
+```{r load_bilingualism_data}
 geo_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
 
 geo_data  = geo_data %>% 
@@ -127,18 +110,28 @@ geo_data  = geo_data %>%
 ## create label variables
 For Provinces and CMA. 
 CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
-```{r}
+```{r label_vars}
 province_names = geo_data %>%  distinct(province) %>% pull(province)
 
 cma_names = geo_data %>% filter(!area %in% c("", "zz_other")) %>% pull(area)
 
 ```
+## add type variable to map data
+We need to know which map areas are provinces and which are CMAs, because the matching works slightly differently
+```{r type_variable}
 
+map_coordinates %<>%
+  mutate(type = case_when( id %in% province_names ~ "province",
+                           id %in% cma_names ~ "cma",
+                           TRUE ~ "match failed"
+                           ))
 
+```
 
-
-## prepare matching census data to  map data
-```{r}
+## prepare matching census data to  map data 
+### create df with all labels and their approximate coordinates
+this is needed later for plotting labels for CMAs
+```{r label_cmas}
 cma_census_labels = map_coordinates %>%  
   filter(type != "province") %>%
   group_by(id) %>% 
@@ -148,14 +141,20 @@ cma_census_labels = map_coordinates %>%
   # x 
   lat = mean(lat)) 
 
-# try matching the census area names to the census map data (in the small dataframe that contains only one row per cma, for efficiency)
-attempted_matching = stringdist_left_join(geo_data %>% filter(type_data != "province", area != "zz_other"), 
-                             cma_census_labels , 
-                            by = c("area" = "id"),
-                             distance_col = NULL)
-
 
 ```
+### attempt matching
+```{r attempt_matching}
+# try matching the census area names to the census map data (in the small dataframe that contains only one row per cma, for efficiency)
+attempted_matching = stringdist_left_join(geo_data %>% filter(type_data != "province", 
+                                                              area != "zz_other"), 
+                                          cma_census_labels , 
+                                          by = c("area" = "id"),
+                                          distance_col = NULL)
+```
+
+
+
 ### adjust labels for non-matching CMAs
 
 ```{r troubleshoot_merging}
@@ -183,7 +182,7 @@ geo_data = geo_data %>%
 
 ### merge map and percentage data
 
-```{r}
+```{r merge}
 # try matching again, to see if anything else fails?
 geo_data = geo_data %>% 
     stringdist_left_join(cma_census_labels ,
@@ -193,25 +192,22 @@ geo_data = geo_data %>%
 failed_merging = geo_data %>% 
   select(province, area, id, type_data) %>% 
   # keep only those where matching failed
-  filter(is.na(id) | area == "Ottawa", type_data == "area", area != "zz_other") 
+  filter(is.na(id) | area == "Ottawa", 
+         type_data == "area", area != "zz_other") 
 
 # if there are any rows in failed_merging, stop and check again which ones failed & fix them
 stopifnot(nrow(failed_merging)==0 )
 
-
-
+#make sure that id always contains either the province id (if id is empty) or the cma id, for linking to map areas
 geo_data = geo_data %>%
   mutate(id = ifelse(is.na(id), province, id ))
 
 ```
 
 
-
-
-
 # Plot Maps
 ## create functionality for English/French map legend labels
-```{r}
+```{r plot_legend}
 plot_language = "English"
 
 legend_label = if_else(plot_language ==  "English",
@@ -219,9 +215,9 @@ legend_label = if_else(plot_language ==  "English",
                        "Pourcentage des \nenfants \nbilingues")
 ```
 
-## plot map without labels
+## plot map without labels {.tabset}
 ### preparation
-```{r}
+```{r map_plot_setup}
 
 map_plot =  ggplot() + 
   # draw province map
@@ -243,7 +239,7 @@ map_plot =  ggplot() +
 
 
 ### colour map
-```{r}
+```{r colour_plot}
 colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
                        labels = scales::percent_format(accuracy=1), 
                       name=legend_label, 
@@ -253,19 +249,22 @@ colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
 colour_map 
 
 ```
-### greyscale map
-```{r}
+### greyscale map 
+```{r greyscale_plot}
 greyscale_map = map_plot + scale_fill_gradient(low = "white", high = "grey27", 
                        labels = scales::percent_format(accuracy = 1), 
                        name=legend_label, 
                        breaks = seq(0.0,0.35, by = 0.1))
+greyscale_map
 ```
 
-## add labels
-### labels for biggest 10 cities
+## add labels {.tabset}
+### prepare labels for biggest 10 cities
 Largest city in each province (-PEI, -NL) selected, then added additional cities by largest pop across Canada to get to 10
 
-```{r ten_cities}
+`long_adjustment` and `lat_adjustment` are created so labels hide as little of the map areas as possible, e.g., moving vancouver & calgary labels to below the province, and Montreal & Toronto labels to the right 
+
+```{r labels_ten_cities}
 
 set.seed(1)
 labels_df <- cma_census_labels %>% 
@@ -275,6 +274,7 @@ labels_df <- cma_census_labels %>%
               id == "Regina - Saskatoon" ~ "Regina -\nSaskatoon",
             #  id == "Moncton - Saint John" ~ "Moncton -\nSaint John",
               TRUE ~ id),
+         # adjust longitude & latitude where necessary to improve plot, this was done using trial & error
          long_adjustment = case_when(
            id  %in% c( "Montréal", "Toronto") ~ -51220,
            id == "Halifax" ~ 30000,
@@ -294,13 +294,10 @@ labels_df <- cma_census_labels %>%
            )
          )
 
-
-
 ```
 
-
 ### colour map with labels
-```{r}
+```{r colour_labels}
 
 colour_map + 
 geom_text_repel(data = labels_df,
@@ -316,10 +313,9 @@ geom_text_repel(data = labels_df,
                  bg.r = 0.15          # shadow radius
                  ) 
 
-
 ```
 ### greyscale map with labels
-```{r}
+```{r greyscale_labels}
 greyscale_map + 
 geom_text_repel(data = labels_df,
                  aes(x= long, y= lat, label = id),
@@ -338,7 +334,7 @@ geom_text_repel(data = labels_df,
 
 ```
 ## save maps
-```{r}
+```{r save_pdf}
 # colour
 ggsave(here::here("03_output","01_figures","canada_map_with_labels_colour.pdf"), 
        width = 6.75, 
