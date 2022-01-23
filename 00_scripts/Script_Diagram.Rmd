@@ -23,7 +23,7 @@ digraph boxes_and_circles {
   # several 'node' statements
   node [shape = box,
         fontname = Helvetica]
-  A; B; C; E
+  A; B; E
 
 
   
@@ -31,7 +31,6 @@ digraph boxes_and_circles {
   node [fontname = Helvetica]
   A [label = 'prep_individuals.Rmd']
   B [label = 'prep_households.Rmd']
-  C [label = 'prep_map_2016.Rmd']
   D [label = 'Predictors.Rmd']
 
   E [label = 'LanguagePairs.Rmd']
@@ -39,9 +38,8 @@ digraph boxes_and_circles {
   G [label = 'Plot_Map_2016.Rmd']
 
 
-  # several 'edge' statements
-  A->E A->F F->G C->G
-  B->D 
+  # 'edge' statements
+  A->E A->F F->G  B->D 
 }
 ") %>%
 export_svg %>% charToRaw %>% rsvg_png(here("03_output/BilCan_Script_Overview.png"),  width = 2000, height = 700)
