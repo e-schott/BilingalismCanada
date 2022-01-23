@@ -31,16 +31,11 @@ the map for the census paper is composed of three main components:
 ```{r load packages}
 
 library(tidyverse)
-library(rgeos) #map-related stuff
 library(rgdal) #map-related stuff
-library(maptools) #map-related stuff
-library(sp) #map-related stuff
+library(sf) #map-related stuff
 library(here) # create working directory
 library(rio) # easier loading & saving
-library(here)
-library(geojsonio)
-library(spdplyr) # the `dplyr` counterpart for shapes
-library(rmapshaper) # the package that allows geo shape transformation
+
 ```
 
 # combined shape file
@@ -63,6 +58,8 @@ st_crs(canada_census_2016)
 # make a simpler dataframe
 canada_census_2016_df <- fortify(canada_census_2016, 
                         region="name")
+# there is a minor warning about overlapping map lines, is okay to ignore 
+
 # save for next script
 export(canada_census_2016_df, file = here("02_map_data/simplified_map_data.Rdata")) 
 
