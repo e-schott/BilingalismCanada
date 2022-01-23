@@ -1,8 +1,19 @@
 ---
-title: "Census Bilingualism Language Pair Analysis"
-output:
-  html_document:
-    df_print: paged
+title: "Language Pair Tables for Manuscript _Youngest Bilingual Canadians_"
+author: 
+- Esther Schott (esther.schott@mail.concordia.ca)
+output:  
+  html_document: 
+    code_folding: show
+    collapsed: no
+    df_print: kable
+    highlight: tango
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
 ---
 author: Esther Schott
 please email esther.schott@mail.concordia.ca if you have any questions
@@ -11,7 +22,7 @@ see poster created from earlier versions this script: https://osf.io/4gekn/
 # Preparation Steps
 
 ## load packages
-```{r echo=FALSE}
+```{r load_packages, message = FALSE}
 library(here)
 library(tidyverse)
 library(rio) # for more powerful import & export of data
@@ -23,15 +34,13 @@ library(snakecase)
 ```
 
 ## read in data
-```{r}
+```{r import_data}
 idata = import(here::here("03_output","00_processed_data", "idata_preprocessed.Rdata"))
 
-
-
 ```
-
-## fix ottawa/gatineau area
-```{r}
+## minor preparation steps
+### fix ottawa/gatineau area
+```{r ottawa_fix}
 idata = idata %>%
   mutate(area = case_when(
     province == "Quebec" & area == "Ottawa – Gatineau" ~ "Gatineau",
@@ -40,8 +49,8 @@ idata = idata %>%
 ```
 
 
-## set age group of interest
-```{r}
+### set age group of interest
+```{r age_groups}
 # create variable with age groups, for easier use with filter
 age_groups_of_interest = c("0 to 4 years", "5 to 6 years", "7 to 9 years")
 
@@ -55,9 +64,10 @@ idata = idata %>%
 
 ## create a long data frame with all language pairings per person
 The goal of this is to show which languages are often combined with each other. For example, how many ppl are in Montreal speaking Arabic and French vs in Edmonton. It's okay if these people also speak another language. Therefore, we will create an extra dataframe that has multiple rows for trilingual ppl 
+
 ### create all possible pairings (2 languages) for the languages one person speaks
 each person can report speaking between 1 and 4 languages in the census
-```{r}
+```{r all_pairings_computed}
 # create all possible pairings
 idata = idata %>% 
   mutate(pairing_1 = ifelse(!is.na(lang1) & !is.na(lang2), 
@@ -77,7 +87,8 @@ idata = idata %>%
 
 ### make long dataframe with one language pair per person
 someone who speaks just one language has one row, someone with 3 languages three (lang1_lang2, lang1_lang3, lang2_lang3), etc.
-```{r}
+
+```{r make_longer_df}
 lang_pair_data = idata %>%
   filter(n_languages_numeric>1) %>%
   gather(number, language_pair, pairing_1:pairing_6) %>%
@@ -87,7 +98,7 @@ lang_pair_data = idata %>%
 
 ### fixing language combo names
 we create a dataframe of all possible language combos, and then fix those, and (later) merge the fixed names back into the main dataframe
-```{r}
+```{r lang_name_dictionary}
 language_pair_dictionary = 
   # get all possible values of language pairs
   tibble(language_pair_old = unique(lang_pair_data$language_pair)) %>%
@@ -106,11 +117,11 @@ language_pair_dictionary =
 
 ```
 
-# Table 2.2: look at languages by province
-# calculate totals 
+# Table 2.2: Province
+## calculate totals 
+how many children of each age group live in each province?
 
-
-```{r}
+```{r totals_province}
 
 # how many children are in the census dataset (regardless of languages spoken)
 n_children_by_age = idata %>% filter(age_group %in% age_groups_of_interest) %>%
@@ -127,7 +138,7 @@ n_children_by_age = idata %>% filter(age_group %in% age_groups_of_interest) %>%
 
 ### totals & percent
 calculate totals and percentages in one, since the calculation is pretty easy
-```{r}
+```{r combined_province}
 lang_pair_by_province_all_ages_combined = lang_pair_data %>% 
   
   # collapse two older ages into one category
@@ -148,7 +159,10 @@ lang_pair_by_province_all_ages_combined = lang_pair_data %>%
 ```
 
 ### create simplified language pairs table
-```{r}
+some language pairs have very few speakers, like "English&German" in Newfoundland, therefore we combine those into a general "Other Pairs" category to shorten table 
+This combines all language pairs with fewer than 0.5% of all children as speakers
+
+```{r simplified_province}
 
 province_lang_pair_dict = lang_pair_by_province_all_ages_combined %>%
   mutate(language_pair_simplified = case_when(
@@ -159,7 +173,7 @@ province_lang_pair_dict = lang_pair_by_province_all_ages_combined %>%
 ```
 
 ### re-calculate percent with new "other pairs" category
-```{r}
+```{r recalculate_other}
 lang_pair_by_province_all_ages_combined %<>%
     select(-percent_bilingual_children_age_0_to_9, -percent_all_children_age_0_to_9) %>%
   full_join(province_lang_pair_dict) %>%
@@ -175,6 +189,7 @@ lang_pair_by_province_all_ages_combined %<>%
 
 ## separate for 0-4 and 5-9
 ### simplify language pairs
+use the categories from 0-9 for consistency
 ```{r}
 
 lang_pair_by_province_and_age_long  = 
@@ -205,20 +220,16 @@ province_by_age_wide = lang_pair_by_province_and_age_long %>%
 ```
 
 
-
-
-
-
-#### combine separate and collapsed ages 
-```{r}
+## combine separate and collapsed ages 
+```{r province_joined}
 province_language_pair_data =  
   full_join(province_by_age_wide, lang_pair_by_province_all_ages_combined) 
 ```
 
-
+## prep output
 ### fix formatting for table
 
-```{r}
+```{r province_formatting}
 province_language_pair_data = province_language_pair_data %>%
   mutate(order_by_type = ifelse(str_detect(language_pair_simplified, "Other" ),2,1),
          province = fct_expand(province, ""))%>%
@@ -234,8 +245,10 @@ province_language_pair_data = province_language_pair_data %>%
 
 ```
 
-## write table to csv
+### write table to csv
+need to create human readable version where only the first instance of area is shown in table (e.g., first instance of "Quebec" in column "province" is shown and all subsequent quebec rows are empty in col province)
 ```{r}
+# make table human readable
 table_2.2 = province_language_pair_data
 table_2.2$province[duplicated(table_2.2$province)] <- ""
 
@@ -245,7 +258,7 @@ table_2.2 %>%
 ```
 
 # Table 2.1. Canada-wide
-## separated by age
+## separate for 0-4 and 5-9
 ###calculate totals
 ```{r}
 totals_across_canada = lang_pair_by_province_and_age_long %>% 
@@ -269,7 +282,7 @@ canada_language_pairs = lang_pair_by_province_and_age_long %>%
 
 
 
-##  0-9
+##  combined for 0-9 years
 ### calculate totals
 ```{r}
 canada_totals_all_ages_combined = 
@@ -280,7 +293,10 @@ canada_totals_all_ages_combined =
             n_bilingual_by_age_canada = sum(n_bilingual_by_age_canada)) %>%
   mutate(age_combined = "age_0_to_9")
 ```
-### combine language pairs
+### simplify language pairs
+some language pairs have very few speakers, like "English&German". therefore we combine those into a general "Other Pairs" category to shorten table 
+This combines all language pairs with fewer than 600 children as speakers 
+some exeptions: - combinations with Indigenous languages are never combined
 ```{r}
 canada_language_pairs_dictionary =  canada_language_pairs %>% 
   
@@ -325,11 +341,13 @@ canada_ages_combined = canada_language_pairs %>%
   arrange(age_combined, -percent_bilingual_children) %>%
   ungroup() %>%  
   select( - n, -total_by_age_canada, - n_bilingual_by_age_canada) %>% 
+  # create with df with bilingual % and all % next to each other
   pivot_wider(names_from = age_combined, 
               values_from = c("percent_bilingual_children", "percent_all_children"))
 
 ```
-## separate for each age
+## simplify langauge pairs for 0-4 and 5-9 
+This is done using the same categories as for 0-9, hence this step here at this point. 
 
 ### calculate percent
 
@@ -344,6 +362,11 @@ canada_language_pairs = canada_language_pairs %>%
          percent_bilingual_children = round(n/n_bilingual_by_age_canada*100,1)) %>% 
   arrange(age_collapsed, -percent_bilingual_children) %>%
   ungroup()
+
+
+```
+### create wide dataframe (bilingual % and all % next to each other)
+```{r}
 # create wide data frame ( show % bilingual and % all next to each other)
 canada_by_age_wide = canada_language_pairs %>% 
   # get rid of columns that vary that we won't need any more (prevent pivot_wider from functioning correctly)
@@ -373,7 +396,8 @@ table_2.1 %>%
 ```
 
 # Table S1 census agglomerations
-## calculate totals
+## separate for 0-4 and 5-9
+### calculate totals
 ```{r}
 n_children_by_age_area = idata %>% 
   filter(age_group %in% age_groups_of_interest,
@@ -386,7 +410,7 @@ n_children_by_age_area = idata %>%
   ungroup()
 ```
 
-## calculate percentages
+### calculate percentages
 ```{r}
 lang_pair_by_area_and_age_long  = 
   lang_pair_data %>% 
@@ -424,7 +448,12 @@ lang_pair_by_area_0_to_9_totals =
 lang_pair_by_area_0_to_9  = lang_pair_by_area_0_to_9 %>%
   full_join(lang_pair_by_area_0_to_9_totals)
 ```
-## decide which language pairs to show based on 0-9 data
+### decide which language pairs to show based on 0-9 data
+some language pairs have very few speakers, like "English&German" in Newfoundland, therefore we combine those into a general "Other Pairs" category to shorten table 
+This combines all language pairs with 
+- fewer than 10 children
+- less than 1.2 % of all children in that area
+No exeption for Indigenous children because there are too few in some areas (confidentiality)
 ```{r}
 lang_pair_by_area_summary = lang_pair_by_area_0_to_9 %>%
   mutate(ratio = (n/total_by_age)*100) %>%
@@ -461,6 +490,7 @@ lang_pair_by_area = rbind(lang_pair_by_area_0_to_9, lang_pair_by_area_and_age_pe
 ```
 
 ## simplify language pairs
+using same rules as for 0-9 (`lang_pair_by_area_summary`) for consistency
 ```{r}
 lang_pair_by_area = lang_pair_by_area %>%
   
@@ -479,7 +509,8 @@ lang_pair_by_area = lang_pair_by_area %>%
   arrange(province, area, age_group, language_pair_type, -n)
   
 ```
-## switch to wide layout
+## prepare for output format
+### switch to wide layout
 ```{r}
 lang_pair_by_area_wide = lang_pair_by_area %>%
   select(-n, -total_by_age, - n_bilingual_children, -language_pair_type) %>% 
@@ -492,16 +523,15 @@ lang_pair_by_area_wide = lang_pair_by_area %>%
 
 
 
-## for paper
+### for paper
+need to create human readable version where only the first instance of area is shown in table (e.g., first instance of "Quebec" in column "province" is shown and all subsequent quebec rows are empty in col province)
 ```{r}
 lang_pair_by_area_wide = 
   lang_pair_by_area_wide %>%
     mutate(language_pair_collapsed = gsub("&", " & ", language_pair_collapsed),
            province = fct_expand(province, ""))
 
-
-
-# silly formatting changes
+#  formatting changes to make easier to read by human
 table_2.3 = lang_pair_by_area_wide
 table_2.3$area[duplicated(table_2.3$area)] <- ""
 table_2.3$province[duplicated(table_2.3$province)] <- ""
@@ -510,7 +540,7 @@ table_2.3 %>%
 
 ```
 
-## for dash app: machine readable table
+### for dashboard app: machine readable table
 ```{r}
 # machine readable table 
 combined_table = lang_pair_by_area_wide %>% mutate(type = "cma", region = area) %>%
@@ -527,6 +557,7 @@ combined_table %>%
 
 
 # the end
+added a beep sound because it sometimes takes long to run, notifies when done
 ```{r}
 beepr::beep("ping")
 ```
