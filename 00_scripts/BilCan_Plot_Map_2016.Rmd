@@ -1,33 +1,36 @@
 ---
-title: "Bilingualism in Canada: Plot Canada Map"
-author: Esther Schott (esther.schott@mail.concordia.ca)
-output: html_document
----
-output: 
+title: "Map visualization  for Manuscript _Youngest Bilingual Canadians_"
+author: 
+- Esther Schott (esther.schott@mail.concordia.ca)
+- Lena V. Kremin (lena.kremin@mail.concordia.ca)
+output:  
   html_document: 
     code_folding: show
     collapsed: no
     df_print: kable
-    highlight: espresso
+    highlight: tango
     number_sections: yes
-    theme: spacelab
+    theme: cerulean
     toc: yes
     toc_float: yes
 editor_options: 
   chunk_output_type: console
+---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-#Readme
-important term: CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not). In this script, I use city/metropolitan area/cma interchangeably
+# readme
+important term:
+**CMA** = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not). 
 
 
 
 # load libraries
-```{r load packages}
+```{r load packages, include = FALSE}
 
 library(tidyverse)
+library(magrittr)
 library(rgeos) #map-related stuff
 library(rgdal) #map-related stuff
 library(maptools) #map-related stuff
