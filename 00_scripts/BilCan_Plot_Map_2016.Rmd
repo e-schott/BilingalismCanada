@@ -178,7 +178,7 @@ geo_data = geo_data %>%
 
 ```
 
-# merge for real
+### merge map and percentage data
 
 ```{r}
 # try matching again, to see if anything else fails?
@@ -207,18 +207,22 @@ geo_data = geo_data %>%
 
 
 # Plot Maps
-## default Canada map without labels
+## create functionality for English/French map legend labels
 ```{r}
 plot_language = "English"
 
 legend_label = if_else(plot_language ==  "English",
                        "Rates of child\nhome bilingualism",
                        "Pourcentage des \nenfants \nbilingues")
+```
 
+## plot map without labels
+### preparation
+```{r}
 
 map_plot =  ggplot() + 
   # draw province map
-  geom_map(data = geo_data %>% add_row(Percent_age_0_to_9 = 0), 
+  geom_map(data = geo_data %>% add_row(Percent_age_0_to_9 = 0), # this is necessary so legend starts at 0 
            map = map_coordinates,
            aes(map_id = id, 
                fill = Percent_age_0_to_9/100),
@@ -229,15 +233,13 @@ map_plot =  ggplot() +
                 y = map_coordinates$lat) + 
  theme_map(base_size = 12) +
   coord_fixed(ratio=1) + 
-  theme(legend.position = c(0.71, 0.53), plot.margin=grid::unit(c(0,0,0,0), "mm")) +labs(x=NULL, y=NULL)
-
- 
-
-
-
+  theme(legend.position = c(0.71, 0.53), plot.margin=grid::unit(c(0,0,0,0), "mm")) + 
+  labs(x=NULL, y=NULL) # reduces white space around plot
 
 ```
-## plot in colour, save as pdf
+
+
+### colour map
 ```{r}
 colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
                        labels = scales::percent_format(accuracy=1), 
@@ -247,32 +249,21 @@ colour_map = map_plot + scale_fill_viridis(option = "D", begin = 0,
 
 colour_map 
 
-
-
 ```
-
-
-## greyscale map, save as pdf
+### greyscale map
 ```{r}
 greyscale_map = map_plot + scale_fill_gradient(low = "white", high = "grey27", 
                        labels = scales::percent_format(accuracy = 1), 
                        name=legend_label, 
                        breaks = seq(0.0,0.35, by = 0.1))
-
-
 ```
 
-
-
-
-
-
-
-## labels for biggest 10 cities (paper)
+## add labels
+### labels for biggest 10 cities
 Largest city in each province (-PEI, -NL) selected, then added additional cities by largest pop across Canada to get to 10
 
 ```{r ten_cities}
-ten_cities_labels = c( "Calgary", "Edmonton",  "Halifax", "Vancouver", "Winnipeg", "Moncton - Saint John", "Toronto", "Ottawa - Gatineau (Ontario part / partie de l'Ontario)", "Montréal", "Regina - Saskatoon")
+
 set.seed(1)
 labels_df <- cma_census_labels %>% 
   filter(id %in% ten_cities_labels) %>%
@@ -305,7 +296,7 @@ labels_df <- cma_census_labels %>%
 ```
 
 
-# label map with colour
+### colour map with labels
 ```{r}
 
 colour_map + 
@@ -322,11 +313,9 @@ geom_text_repel(data = labels_df,
                  bg.r = 0.15          # shadow radius
                  ) 
 
-ggsave(here::here("03_output","01_figures","canada_map_with_labels_colour.pdf"), 
-        width = 6.75, 
-        height =5.8, dpi = 300, unit = "in")
+
 ```
-# greyscale map with labels
+### greyscale map with labels
 ```{r}
 greyscale_map + 
 geom_text_repel(data = labels_df,
@@ -343,8 +332,22 @@ geom_text_repel(data = labels_df,
                  bg.r = 0.15          # shadow radius
                 ) 
 
+
+```
+## save maps
+```{r}
+# colour
+ggsave(here::here("03_output","01_figures","canada_map_with_labels_colour.pdf"), 
+       width = 6.75, 
+       height =5.8, 
+       dpi = 300, 
+       unit = "in")
+
+# greyscale
 ggsave(here::here("03_output","01_figures","canada_map_with_labels_grey.pdf"), 
-        width = 6.75, 
-        height = 5.8, dpi = 300, unit = "in")
+       width = 6.75, 
+       height = 5.8, 
+       dpi = 300, 
+       unit = "in")
 ```
 
