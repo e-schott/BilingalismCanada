@@ -22,10 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
 #Readme
 important term: CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not). In this script, I use city/metropolitan area/cma interchangeably
 
-the map for the census paper is composed of three main components:
-- map data for provinces (matched with the non-metropolitain areas % for each province). This provides the background for the plot
-- map data for CMAs (matched with % for CMAs). overlaid on the non-cma % per province
-- labels for CMAs (not all are shown in the current iteration of the map to prevent clutter)
+
 
 # load libraries
 ```{r load packages}
@@ -42,53 +39,99 @@ library(viridis) # colour scheme
 library(scales) # for showing % in graph
 library(ggrepel) # for labels
 library(rio) # easier loading & saving
+
 ```
 
+# define variables
+```{r}
+# some provinces/territories don't have any info on metropolitain areas. Need to treat them differently when it comes to some of the plotting steps, so create variable
+provinces_with_no_cma = c("Newfoundland and Labrador", "Prince Edward Island", "Yukon", "Northwest Territories", "Nunavut")
+
+# lookup dictionary to convert map geographical terms to data terms
+northern_data = data.frame(province_old = rep("Northern Canada",3), province = c("Yukon", "Northwest Territories", "Nunavut"))
+
+# cities for which we want labels in map output:
+ten_cities_labels = c( "Calgary", "Edmonton",  "Halifax", "Vancouver", "Winnipeg", "Moncton - Saint John", "Toronto", "Ottawa - Gatineau (Ontario part / partie de l'Ontario)", "Montréal", "Regina - Saskatoon")
+
+```
 
 # load map data
 ## load map theme
 ```{r load_map_theme}
-# decent, uncluttered map theme (needs devtools package tho)
+# decent, uncluttered map theme
 # needed for theme_map function in ggplot call below
 devtools::source_gist("https://gist.github.com/hrbrmstr/33baa3a79c5cfef0f6df")
  
 ```
-# merge geo_data and map data
+
+## load map shape file
+Useful  info on canadian map data in R here: https://tengl.net/blog/2020/1/7/drawing-canada-maps-in-r
+
+the map files are downloaded from the census website, and then preprocessed in python to:
+- combine the CMA and province shape files 
+- simplify the shapes using https://mapshaper.org/
+
 ```{r}
-geo_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
+unzip(zipfile = here("02_map_data/recombined_shape_files_lambert.zip"), exdir =  here("02_map_data/simplified_census_map_2016_lambert"))
 
-northern_data = data.frame(province_old = rep("Northern Canada",3), province = c("Yukon", "Northwest Territories", "Nunavut"))
+canada_census_2016 <- readOGR(dsn = here("02_map_data","simplified_census_map_2016_lambert",
+                            "recombined_shape_files_lambert.shp"),
+                      layer = "recombined_shape_files_lambert",
+                      use_iconv = TRUE, 
+                      encoding = "UTF-8")
 
-provinces_with_no_cma = c("Newfoundland and Labrador", "Prince Edward Island", "Yukon", "Northwest Territories", "Nunavut")
+st_crs(canada_census_2016) 
 
-geo_data  = geo_data %>% 
-  rename(province_old = province) %>%
-  full_join(northern_data) %>% 
-  mutate(province = ifelse(is.na(province), province_old, province),
-         type_data = ifelse(area == "", "province", "area")) %>%
-  select(-province_old,  -country) %>% 
-  filter(type_data  != "province" | province %in% provinces_with_no_cma )
+
+
+# make a simpler dataframe
+map_coordinates <- fortify(canada_census_2016, 
+                        region="name")
+# there is a minor warning about overlapping map lines, is okay to ignore 
+
+
 
 ```
-# create label variables
-CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
-```{r}
-province_names = geo_data %>%  distinct(province) %>% pull(province)
-cma_names = geo_data %>% filter(!area %in% c("", "zz_other")) %>% pull(area)
-
-```
 
 
-# import simplified map from prep_map
+## add type variable to map data
 ```{r}
 
-map_coordinates <- import(here("02_map_data/simplified_map_data.Rdata")) %>%
+map_coordinates %<>%
   mutate(type = case_when( id %in% province_names ~ "province",
                            id %in% cma_names ~ "cma",
                            TRUE ~ "match failed"
                            ))
 
 ```
+
+
+# load bilingualism percentages data frame
+`geo_data` is the output of the `BilCan_Geo_Percentages_2016.Rmd` script. 
+Need extra step for Northern Canada, which is refered to as the individual territories in the map 
+```{r}
+geo_data = import( here("03_output", "00_processed_data", "idata_geo_province.Rdata"))
+
+geo_data  = geo_data %>% 
+  rename(province_old = province) %>%
+  full_join(northern_data) %>% # fix territory names
+  mutate(province = ifelse(is.na(province), province_old, province),
+         type_data = ifelse(area == "", "province", "area")) %>%
+  select(-province_old,  -country) %>% # no longer needed
+  filter(type_data  != "province" | province %in% provinces_with_no_cma )
+
+```
+## create label variables
+For Provinces and CMA. 
+CMA = census metropolitan area. can be a city (e.g., Montreal) or a combination of two cities that are in the same province (if both cities are small, can be geographically close or not)
+```{r}
+province_names = geo_data %>%  distinct(province) %>% pull(province)
+
+cma_names = geo_data %>% filter(!area %in% c("", "zz_other")) %>% pull(area)
+
+```
+
+
 
 
 ## prepare matching census data to  map data
