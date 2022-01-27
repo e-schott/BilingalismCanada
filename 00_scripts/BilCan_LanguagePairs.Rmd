@@ -166,7 +166,7 @@ lang_pair_by_province_all_ages_combined = lang_pair_data %>%
 ```
 
 ### create simplified language pairs lookup dictionary
-some language pairs have very few speakers, like "English&German" in Newfoundland, therefore we combine those into a general "Other Pairs" category to shorten table 
+some language pairs have very few speakers,  therefore we combine those into a general "Other " categories to shorten table 
 This combines all language pairs with fewer than .5% of all children as speakers
 
 ```{r simplified_province}
@@ -179,12 +179,12 @@ province_lang_pair_dict = lang_pair_by_province_all_ages_combined %>%
            str_detect(language_pair, "Indigenous") & n > 10 ~ language_pair,
            official_language == "English" ~ "English & Other",
            official_language == "French" ~ "French & Other",
-           is.na(official_language) ~ "Other Pairs"
+           is.na(official_language) ~ "Other & Other"
          )) %>% 
   select(-percent_bilingual_children_age_0_to_9, -percent_all_children_age_0_to_9)
 ```
 
-### re-calculate percent with new "other pairs" category
+### re-calculate percent with new  categories
 ```{r recalculate_other}
 lang_pair_by_province_all_ages_combined %<>%
     select(-percent_bilingual_children_age_0_to_9, -percent_all_children_age_0_to_9) %>%
@@ -322,7 +322,7 @@ canada_totals_all_ages_combined =
   mutate(age_combined = "age_0_to_9")
 ```
 ### simplify language pairs lookup dictionary
-some language pairs have very few speakers, like "English&German". therefore we combine those into a general "Other Pairs" category to shorten table 
+some language pairs have very few speakers, like "English&German". therefore we combine those into a general "Other" category to shorten table 
 This combines all language pairs with fewer than 600 children 0-9 (roughly 0.57% of the whole dataset)
 some exeptions: - combinations with Indigenous languages are never combined
 ```{r}
@@ -340,7 +340,7 @@ canada_language_pairs_dictionary =  canada_language_pairs %>%
            str_detect(language_pair, "Indigenous") ~ language_pair,
            official_language == "English" ~ "English & Other",
            official_language == "French" ~ "French & Other",
-           is.na(official_language) ~ "Other Pairs"
+           is.na(official_language) ~ "Other & Other"
          ),
          language_pair_type = case_when(
            str_detect(language_pair, "Indigenous") ~ "actual",
@@ -476,7 +476,7 @@ lang_pair_by_area_0_to_9  = lang_pair_by_area_0_to_9 %>%
   full_join(lang_pair_by_area_0_to_9_totals)
 ```
 ### decide which language pairs to show based on 0-9 data
-some language pairs have very few speakers, like "English&German" in Newfoundland, therefore we combine those into a general "Other Pairs" category to shorten table 
+some language pairs have very few speakers, therefore we combine those into a general "Other" categories to shorten table 
 This combines all language pairs with 
 - fewer than 10 children
 - less than 1.2 % of all children in that area
@@ -494,7 +494,7 @@ arrange(collapse, -n) %>%
           collapse == FALSE & !str_detect(language_pair, "Other") ~ language_pair,
                official_language == "English" ~ "English&Other",
            official_language == "French" ~ "French&Other",
-           is.na(official_language) ~ "Other Pairs"
+           is.na(official_language) ~ "Other & Other"
          ),
          language_pair_type = case_when(
            str_detect(language_pair, "Other") ~ "collapsed",
