@@ -180,7 +180,7 @@ province_lang_pair_dict = lang_pair_by_province_all_ages_combined %>%
            official_language == "English" ~ "English & Other",
            official_language == "French" ~ "French & Other",
            is.na(official_language) ~ "Other Pairs"
-         )) #%>% 
+         )) %>% 
   select(-percent_bilingual_children_age_0_to_9, -percent_all_children_age_0_to_9)
 ```
 
@@ -323,7 +323,7 @@ canada_totals_all_ages_combined =
 ```
 ### simplify language pairs lookup dictionary
 some language pairs have very few speakers, like "English&German". therefore we combine those into a general "Other Pairs" category to shorten table 
-This combines all language pairs with fewer than 0.5% of all children 0-9 (a total of 526 in our dataset: 0.005 * 105157)
+This combines all language pairs with fewer than 600 children 0-9 (roughly 0.57% of the whole dataset)
 some exeptions: - combinations with Indigenous languages are never combined
 ```{r}
 canada_language_pairs_dictionary =  canada_language_pairs %>% 
@@ -568,7 +568,7 @@ table_2.3 %>%
 ```{r}
 # machine readable table 
 combined_table = lang_pair_by_area_wide %>% mutate(type = "cma", region = area) %>%
-  full_join(province_language_pair_data %>% mutate(type = "province", region = province) %>% rename(language_pair_collapsed = language_pair)) %>%
+  full_join(province_language_pair_data %>% mutate(type = "province", region = province) %>% rename(language_pair_collapsed = language_pair_simplified)) %>%
   full_join(table_2.1 %>% mutate(type = "canada", region = "Canada")) %>%
   relocate(type, region, .before = language_pair_collapsed) %>%
   relocate(province, area, .after= percent_all_children_age_0_to_9) 

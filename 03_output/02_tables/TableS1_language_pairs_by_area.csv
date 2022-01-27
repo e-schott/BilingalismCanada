@@ -1,113 +1,113 @@
 ﻿"province","area","language_pair_collapsed","percent_bilingual_children_age_0_to_4","percent_bilingual_children_age_5_to_9","percent_bilingual_children_age_0_to_9","percent_all_children_age_0_to_4","percent_all_children_age_5_to_9","percent_all_children_age_0_to_9"
-"Nova Scotia","Halifax","English & French",34.8,50.6,45,2.9,7.7,5.3
-"","","Arabic & English",26.1,9.4,15.3,2.2,1.4,1.8
+"Nova Scotia","Halifax","English  &  French",34.8,50.6,45,2.9,7.7,5.3
+"","","English  &  Arabic",26.1,9.4,15.3,2.2,1.4,1.8
 "","","English & Other",32.6,35.3,34.4,2.7,5.4,4
 "","","French & Other",6.5,4.7,5.3,0.5,0.7,0.6
-"New Brunswick","Moncton – Saint John","English & French",82.5,75.4,78,9.5,12.6,11.2
+"New Brunswick","Moncton – Saint John","English  &  French",82.5,75.4,78,9.5,12.6,11.2
 "","","English & Other",17.5,20.3,19.3,2,3.4,2.8
 "","","French & Other",NA,4.3,2.8,NA,0.7,0.4
-"Quebec","Gatineau","English & French",61.8,64.1,63.2,12.8,18.2,15.6
-"","","French & Spanish",7.3,4.7,5.7,1.5,1.3,1.4
+"Quebec","Gatineau","English  &  French",61.8,64.1,63.2,12.8,18.2,15.6
+"","","French  &  Spanish",7.3,4.7,5.7,1.5,1.3,1.4
 "","","French & Other",21.8,23.5,22.9,4.5,6.7,5.7
 "","","English & Other",9.1,7.6,8.2,1.9,2.2,2
-"","Montréal","English & French",34.7,36.3,35.6,10.3,13.3,11.9
-"","","Arabic & French",11,10.5,10.7,3.3,3.9,3.6
-"","","French & Spanish",5.1,4.6,4.9,1.5,1.7,1.6
+"","Montréal","English  &  French",34.7,36.3,35.6,10.3,13.3,11.9
+"","","French  &  Arabic",11,10.5,10.7,3.3,3.9,3.6
+"","","French  &  Spanish",5.1,4.6,4.9,1.5,1.7,1.6
 "","","French & Other",27.6,29.6,28.7,8.2,10.9,9.6
 "","","English & Other",21,18.8,19.7,6.2,6.9,6.6
-"","","Other & Other",0.6,0.2,0.4,0.2,0.1,0.1
-"","Québec","English & French",42.9,51.9,47.3,4.1,4.8,4.5
+"","","Other  &  Other",0.6,0.2,0.4,0.2,0.1,0.1
+"","Québec","English  &  French",42.9,51.9,47.3,4.1,4.8,4.5
 "","","French & Other",53.6,45.4,49.5,5.2,4.2,4.7
 "","","English & Other",2.7,1.9,2.3,0.3,0.2,0.2
-"","","Other & Other",0.9,0.9,0.9,0.1,0.1,0.1
-"","Sherbrooke – Trois-Rivières","English & French",55.6,66,61.1,5.2,6.2,5.7
+"","","Other  &  Other",0.9,0.9,0.9,0.1,0.1,0.1
+"","Sherbrooke – Trois-Rivières","English  &  French",55.6,66,61.1,5.2,6.2,5.7
 "","","French & Other",40,32,35.8,3.8,3,3.4
 "","","English & Other",4.4,2,3.2,0.4,0.2,0.3
-"Ontario","Brantford – Guelph – Barrie","English & French",26.7,41.2,35.2,2.2,4.4,3.3
+"Ontario","Brantford – Guelph – Barrie","English  &  French",26.7,41.2,35.2,2.2,4.4,3.3
 "","","English & Other",68.3,57.6,62.1,5.5,6.1,5.8
 "","","French & Other",1.7,1.2,1.4,0.1,0.1,0.1
-"","","Other & Other",3.3,NA,1.4,0.3,NA,0.1
-"","Greater Sudbury - Thunder Bay","English & French",77.6,80.9,79.7,9.8,20,14.8
+"","","Other  &  Other",3.3,NA,1.4,0.3,NA,0.1
+"","Greater Sudbury - Thunder Bay","English  &  French",77.6,80.9,79.7,9.8,20,14.8
 "","","English & Other",18.4,16,16.8,2.3,3.9,3.1
 "","","French & Other",4.1,3.2,3.5,0.5,0.8,0.7
-"","Hamilton","English & French",9,22.4,16.3,1.1,3.5,2.3
-"","","Arabic & English",9.8,8.1,8.8,1.2,1.3,1.2
+"","Hamilton","English  &  French",9,22.4,16.3,1.1,3.5,2.3
+"","","English  &  Arabic",9.8,8.1,8.8,1.2,1.3,1.2
 "","","English & Other",79.7,65.2,71.8,10,10.1,10.1
 "","","French & Other",1.5,3.1,2.4,0.2,0.5,0.3
-"","","Other & Other",NA,1.2,0.7,NA,0.2,0.1
-"","Kingston – Peterborough","English & French",40.7,61.1,52.4,2.8,5.7,4.3
+"","","Other  &  Other",NA,1.2,0.7,NA,0.2,0.1
+"","Kingston – Peterborough","English  &  French",40.7,61.1,52.4,2.8,5.7,4.3
 "","","English & Other",55.6,38.9,46,3.9,3.7,3.8
-"","","Other & Other",3.7,NA,1.6,0.3,NA,0.1
-"","Kitchener – Cambridge – Waterloo","English & French",9,19.3,15.4,1,3.1,2.1
+"","","Other  &  Other",3.7,NA,1.6,0.3,NA,0.1
+"","Kitchener – Cambridge – Waterloo","English  &  French",9,19.3,15.4,1,3.1,2.1
 "","","English & Other",87.6,75.9,80.3,9.3,12.4,10.9
 "","","French & Other",2.2,4.1,3.4,0.2,0.7,0.5
-"","","Other & Other",1.1,0.7,0.9,0.1,0.1,0.1
-"","London","English & French",16.5,30,24.4,2.1,5,3.6
-"","","Arabic & English",13.2,10,11.3,1.6,1.7,1.7
+"","","Other  &  Other",1.1,0.7,0.9,0.1,0.1,0.1
+"","London","English  &  French",16.5,30,24.4,2.1,5,3.6
+"","","English  &  Arabic",13.2,10,11.3,1.6,1.7,1.7
 "","","English & Other",67,54.6,59.7,8.3,9.1,8.7
 "","","French & Other",3.3,4.6,4.1,0.4,0.8,0.6
-"","","Other & Other",NA,0.8,0.5,NA,0.1,0.1
-"","Oshawa","English & French",20.4,38.1,30.4,1.8,4,2.9
+"","","Other  &  Other",NA,0.8,0.5,NA,0.1,0.1
+"","Oshawa","English  &  French",20.4,38.1,30.4,1.8,4,2.9
 "","","English & Other",75.5,57.1,65.2,6.6,6,6.3
 "","","French & Other",4.1,4.8,4.5,0.4,0.5,0.4
-"","Ottawa","English & French",45.6,52.4,49.8,12.7,22.2,17.6
-"","","Arabic & English",8.4,7.3,7.7,2.3,3.1,2.7
+"","Ottawa","English  &  French",45.6,52.4,49.8,12.7,22.2,17.6
+"","","English  &  Arabic",8.4,7.3,7.7,2.3,3.1,2.7
 "","","English & Other",34.5,28.9,31,9.6,12.2,11
 "","","French & Other",11.1,11.1,11.1,3.1,4.7,3.9
-"","","Other & Other",0.5,0.3,0.4,0.1,0.1,0.1
-"","St. Catharines – Niagara","English & French",30.8,39.1,35.9,2.3,4.7,3.5
+"","","Other  &  Other",0.5,0.3,0.4,0.1,0.1,0.1
+"","St. Catharines – Niagara","English  &  French",30.8,39.1,35.9,2.3,4.7,3.5
 "","","English & Other",66.7,56.2,60.2,5.1,6.8,5.9
 "","","French & Other",NA,3.1,1.9,NA,0.4,0.2
-"","","Other & Other",2.6,1.6,1.9,0.2,0.2,0.2
-"","Toronto","English & French",5.8,10.5,8.6,1.5,3.7,2.6
-"","","English & Urdu",6.7,7.4,7.1,1.7,2.6,2.2
-"","","English & Punjabi",6.3,6.7,6.5,1.6,2.3,2
-"","","English & Mandarin",6.5,5.7,6,1.7,2,1.8
-"","","English & Tamil",4.9,4.1,4.4,1.3,1.4,1.4
+"","","Other  &  Other",2.6,1.6,1.9,0.2,0.2,0.2
+"","Toronto","English  &  French",5.8,10.5,8.6,1.5,3.7,2.6
+"","","English  &  Urdu",6.7,7.4,7.1,1.7,2.6,2.2
+"","","English  &  Punjabi",6.3,6.7,6.5,1.6,2.3,2
+"","","English  &  Mandarin",6.5,5.7,6,1.7,2,1.8
+"","","English  &  Tamil",4.9,4.1,4.4,1.3,1.4,1.4
 "","","English & Other",66.5,61.1,63.3,17.1,21.3,19.3
 "","","French & Other",1.8,3.2,2.6,0.5,1.1,0.8
-"","","Other & Other",1.4,1.3,1.3,0.4,0.4,0.4
-"","Windsor","English & French",18.2,37.5,30.5,3.1,10.3,6.9
-"","","Arabic & English",10.4,10.3,10.3,1.8,2.8,2.3
+"","","Other  &  Other",1.4,1.3,1.3,0.4,0.4,0.4
+"","Windsor","English  &  French",18.2,37.5,30.5,3.1,10.3,6.9
+"","","English  &  Arabic",10.4,10.3,10.3,1.8,2.8,2.3
 "","","English & Other",67.5,46.3,54,11.7,12.8,12.2
 "","","French & Other",2.6,4.4,3.8,0.4,1.2,0.9
-"","","Other & Other",1.3,1.5,1.4,0.2,0.4,0.3
-"Manitoba","Winnipeg","English & French",20.5,20.9,20.7,3.4,4.2,3.8
-"","","English & Tagalog",15.4,12.3,13.7,2.6,2.5,2.5
-"","","English & Punjabi",7.7,6.8,7.2,1.3,1.4,1.3
+"","","Other  &  Other",1.3,1.5,1.4,0.2,0.4,0.3
+"Manitoba","Winnipeg","English  &  French",20.5,20.9,20.7,3.4,4.2,3.8
+"","","English  &  Tagalog",15.4,12.3,13.7,2.6,2.5,2.5
+"","","English  &  Punjabi",7.7,6.8,7.2,1.3,1.4,1.3
 "","","English & Other",53.3,55.7,54.7,8.9,11.3,10.1
-"","","Other & Other",2.1,2.1,2.1,0.3,0.4,0.4
+"","","Other  &  Other",2.1,2.1,2.1,0.3,0.4,0.4
 "","","French & Other",1,2.1,1.6,0.2,0.4,0.3
-"Saskatchewan","Regina – Saskatoon","English & French",4.2,20.8,14.6,0.5,3.5,2
-"","","English & Urdu",11.6,11.3,11.4,1.2,1.9,1.6
-"","","English & Tagalog",10.5,9.4,9.8,1.1,1.6,1.4
+"Saskatchewan","Regina – Saskatoon","English  &  French",4.2,20.8,14.6,0.5,3.5,2
+"","","English  &  Urdu",11.6,11.3,11.4,1.2,1.9,1.6
+"","","English  &  Tagalog",10.5,9.4,9.8,1.1,1.6,1.4
 "","","English & Other",68.4,55.3,60.2,7.3,9.3,8.3
 "","","French & Other",2.1,1.9,2,0.2,0.3,0.3
-"","","Other & Other",3.2,1.3,2,0.3,0.2,0.3
-"Alberta","Calgary","English & French",6.2,15,11.5,1.1,3.8,2.5
-"","","English & Punjabi",7.6,8.8,8.4,1.4,2.2,1.8
-"","","English & Urdu",7.6,5.4,6.3,1.4,1.4,1.4
+"","","Other  &  Other",3.2,1.3,2,0.3,0.2,0.3
+"Alberta","Calgary","English  &  French",6.2,15,11.5,1.1,3.8,2.5
+"","","English  &  Punjabi",7.6,8.8,8.4,1.4,2.2,1.8
+"","","English  &  Urdu",7.6,5.4,6.3,1.4,1.4,1.4
 "","","English & Other",74.9,66.4,69.8,13.3,16.8,15.1
 "","","French & Other",1.7,2.7,2.3,0.3,0.7,0.5
-"","","Other & Other",1.9,1.7,1.8,0.3,0.4,0.4
-"","Edmonton","English & French",7.8,14.3,11.2,1.4,2.9,2.1
-"","","Arabic & English",8,8.3,8.2,1.4,1.7,1.5
-"","","English & Tagalog",7.8,5.2,6.4,1.4,1.1,1.2
+"","","Other  &  Other",1.9,1.7,1.8,0.3,0.4,0.4
+"","Edmonton","English  &  French",7.8,14.3,11.2,1.4,2.9,2.1
+"","","English  &  Arabic",8,8.3,8.2,1.4,1.7,1.5
+"","","English  &  Tagalog",7.8,5.2,6.4,1.4,1.1,1.2
 "","","English & Other",72.7,69.5,71.1,12.8,14.2,13.5
 "","","French & Other",2.4,1.8,2.1,0.4,0.4,0.4
-"","","Other & Other",1.2,0.9,1.1,0.2,0.2,0.2
-"British Columbia","Kelowna – Abbotsford","English & Punjabi",44.8,54.4,50,6,7.9,7
-"","","English & French",10.4,16.5,13.7,1.4,2.4,1.9
+"","","Other  &  Other",1.2,0.9,1.1,0.2,0.2,0.2
+"British Columbia","Kelowna – Abbotsford","English  &  Punjabi",44.8,54.4,50,6,7.9,7
+"","","English  &  French",10.4,16.5,13.7,1.4,2.4,1.9
 "","","English & Other",43.3,29.1,35.6,5.8,4.2,5
 "","","French & Other",1.5,NA,0.7,0.2,NA,0.1
-"","Vancouver","English & Mandarin",16.4,10.9,13.3,4.2,3.5,3.8
-"","","English & Punjabi",10.7,13.7,12.4,2.7,4.4,3.6
-"","","English & French",4.4,10.5,7.9,1.1,3.3,2.3
-"","","Cantonese & English",7.4,6.1,6.6,1.9,1.9,1.9
+"","Vancouver","English  &  Mandarin",16.4,10.9,13.3,4.2,3.5,3.8
+"","","English  &  Punjabi",10.7,13.7,12.4,2.7,4.4,3.6
+"","","English  &  French",4.4,10.5,7.9,1.1,3.3,2.3
+"","","English  &  Cantonese",7.4,6.1,6.6,1.9,1.9,1.9
 "","","English & Other",57.6,55.6,56.5,14.6,17.7,16.2
-"","","Other & Other",2.5,1.2,1.8,0.6,0.4,0.5
+"","","Other  &  Other",2.5,1.2,1.8,0.6,0.4,0.5
 "","","French & Other",1,2,1.6,0.3,0.6,0.4
-"","Victoria","English & French",16.7,48.3,34.3,1.9,6.6,4.2
+"","Victoria","English  &  French",16.7,48.3,34.3,1.9,6.6,4.2
 "","","English & Other",77.1,48.3,61.1,8.6,6.6,7.6
 "","","French & Other",4.2,3.3,3.7,0.5,0.5,0.5
-"","","Other & Other",2.1,NA,0.9,0.2,NA,0.1
+"","","Other  &  Other",2.1,NA,0.9,0.2,NA,0.1
