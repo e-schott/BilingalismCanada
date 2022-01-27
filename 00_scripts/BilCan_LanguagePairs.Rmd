@@ -102,18 +102,24 @@ we create a dataframe of all possible language combos, and then fix those, and (
 language_pair_dictionary = 
   # get all possible values of language pairs
   tibble(language_pair_old = unique(lang_pair_data$language_pair)) %>%
-  filter(str_detect(language_pair_old, "Other|AustroAsiatic", negate = TRUE)) %>%
+ # filter(str_detect(language_pair_old, "Other|AustroAsiatic", negate = TRUE)) %>%
   # add space for better visibility
   mutate(language_pair = gsub("&", " & ", language_pair_old),
-         # flag the ones that end in English, French, aboriginal languages (want these first always)
+         # flag the ones that end in English, French, Indigenous languages (want these first always)
          fix = str_detect( language_pair, "^English|^French|^Abo", negate = TRUE)) %>%
   # separate languages so we can recombine
   separate(language_pair, into = c("lang1", "lang2"), sep = " & ", remove = FALSE) %>%
-  # if English, French, or aboriginal language came last, put it first now - else keep as is
-  mutate(language_pair = ifelse(fix == TRUE, paste(lang2, lang1, sep = " & "), language_pair)) %>%
+  # if English, French, or Indigenous language came last, put it first now - else keep as is
+  mutate(language_pair = ifelse(fix == TRUE, paste(lang2, lang1, sep = " & "), language_pair),
+         language_pair = str_replace(language_pair, "Aboriginal", "Indigenous Languages" )) %>%
   # keep only old name (for matching) and new name
-  select(language_pair, language_pair_old) %>%
-  add_row(language_pair = "Other Pairs", language_pair_old = "Other Pairs")
+  select(language_pair, language_pair_old) 
+
+# rename all language pairs for better readability
+lang_pair_data  = lang_pair_data %>%
+  rename(language_pair_old = language_pair) %>%
+  left_join(language_pair_dictionary, by = "language_pair_old")
+
 
 ```
 
@@ -232,12 +238,11 @@ province_language_pair_data =
 ```{r province_formatting}
 province_language_pair_data = province_language_pair_data %>%
   mutate(order_by_type = ifelse(str_detect(language_pair_simplified, "Other" ),2,1),
-         province = fct_expand(province, ""))%>%
+         province = fct_expand(province, "")) %>%
   arrange(province, order_by_type, -percent_bilingual_children_age_0_to_9) %>%
-   left_join(language_pair_dictionary, by = c("language_pair_simplified" = "language_pair_old")) %>% 
-  select(-language_pair_simplified, -n, -total_by_age, -order_by_type) %>% # get rid of messy column name
+  select( -n, -total_by_age, -order_by_type) %>% # get rid of messy column name
   # reorder some columns
-  relocate(language_pair, 
+  relocate(language_pair_simplified, 
            .after = province) %>%
   relocate(percent_bilingual_children_age_0_to_9, 
            .after = percent_bilingual_children_age_5_to_9)
