@@ -303,9 +303,9 @@ canada_totals_all_ages_combined =
             n_bilingual_by_age_canada = sum(n_bilingual_by_age_canada)) %>%
   mutate(age_combined = "age_0_to_9")
 ```
-### simplify language pairs
+### simplify language pairs lookup dictionary
 some language pairs have very few speakers, like "English&German". therefore we combine those into a general "Other Pairs" category to shorten table 
-This combines all language pairs with fewer than 600 children as speakers 
+This combines all language pairs with fewer than 0.5% of all children 0-9 (a total of 526 in our dataset: 0.005 * 105157)
 some exeptions: - combinations with Indigenous languages are never combined
 ```{r}
 canada_language_pairs_dictionary =  canada_language_pairs %>% 
