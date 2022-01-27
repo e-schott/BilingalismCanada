@@ -164,17 +164,22 @@ lang_pair_by_province_all_ages_combined = lang_pair_data %>%
   
 ```
 
-### create simplified language pairs table
+### create simplified language pairs lookup dictionary
 some language pairs have very few speakers, like "English&German" in Newfoundland, therefore we combine those into a general "Other Pairs" category to shorten table 
-This combines all language pairs with fewer than 0.5% of all children as speakers
+This combines all language pairs with fewer than .5% of all children as speakers
 
 ```{r simplified_province}
 
 province_lang_pair_dict = lang_pair_by_province_all_ages_combined %>%
-  mutate(language_pair_simplified = case_when(
-    str_detect(language_pair, "Other") ~ "Other Pairs",
-    percent_all_children_age_0_to_9 > 0.5 ~ language_pair,
-    TRUE ~ "Other Pairs")) %>% 
+     mutate(collapse = ifelse(percent_all_children_age_0_to_9 > .5, FALSE, TRUE),
+       official_language = str_extract(language_pair, "English|French"),
+         language_pair_simplified = case_when(
+          collapse == FALSE & !str_detect(language_pair, "Other") ~ language_pair,
+           str_detect(language_pair, "Indigenous") & n > 10 ~ language_pair,
+           official_language == "English" ~ "English & Other",
+           official_language == "French" ~ "French & Other",
+           is.na(official_language) ~ "Other Pairs"
+         )) #%>% 
   select(-percent_bilingual_children_age_0_to_9, -percent_all_children_age_0_to_9)
 ```
 
