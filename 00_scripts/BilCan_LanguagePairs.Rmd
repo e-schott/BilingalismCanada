@@ -12,9 +12,8 @@ output:
     theme: cerulean
     toc: yes
     toc_float: yes
-#editor_options: 
-#  chunk_output_type: console
 ---
+
 author: Esther Schott
 please email esther.schott@mail.concordia.ca if you have any questions
 see poster created from earlier versions this script: https://osf.io/4gekn/
@@ -323,7 +322,7 @@ canada_totals_all_ages_combined =
 ```
 ### simplify language pairs lookup dictionary
 some language pairs have very few speakers, like "English&German". therefore we combine those into a general "Other" category to shorten table 
-This combines all language pairs with fewer than 600 children 0-9 (roughly 0.57% of the whole dataset)
+This combines all language pairs with fewer than 0.5% of all children 0-9 (a total of 526 in our dataset: 0.005 * 105157)
 some exeptions: - combinations with Indigenous languages are never combined
 ```{r}
 canada_language_pairs_dictionary =  canada_language_pairs %>% 
@@ -332,7 +331,7 @@ canada_language_pairs_dictionary =  canada_language_pairs %>%
   group_by(language_pair, age_combined) %>%
   summarize(n = sum(n)) %>%
   ungroup() %>% 
-  mutate(collapse = ifelse(n < 600, T, F),
+  mutate(collapse = ifelse(n < 526, T, F),
     official_language = str_extract(language_pair, "English|French"),
          language_pair_collapsed = case_when(
           collapse == FALSE & !str_detect(language_pair, "Other") ~ language_pair,
