@@ -166,7 +166,7 @@ lang_pair_by_province_all_ages_combined = lang_pair_data %>%
 
 ### create simplified language pairs lookup dictionary
 some language pairs have very few speakers,  therefore we combine those into a general "Other " categories to shorten table 
-This combines all language pairs with fewer than .5% of all children as speakers
+This combines all language pairs with fewer than .5% of all children as speakers, and with less than 10 children (to avoid calculting % for unreliable small-sample data)
 
 ```{r simplified_province}
 
@@ -247,7 +247,7 @@ province_language_pair_data = province_language_pair_data %>%
   mutate(order_by_type = ifelse(str_detect(language_pair_simplified, "Other" ),2,1),
          province = fct_expand(province, "")) %>%
   arrange(province, order_by_type, -percent_bilingual_children_age_0_to_9) %>%
-  select( -n, -total_by_age) %>% # get rid of unnecessary column names
+  select(-n, -total_by_age) %>% # get rid of unnecessary column names
   # reorder some columns
   relocate(language_pair_simplified, 
            .after = province) %>%
@@ -261,20 +261,21 @@ province_language_pair_data = province_language_pair_data %>%
 ```{r}
 table_2.2 = province_language_pair_data %>% 
   mutate(lang_pair_collapsed = case_when(
-    order_by_type == 1 ~ language_pair_simplified,
+        province %in% c("Ontario", "Quebec", "Alberta") & str_detect(language_pair_simplified, "Indi") ~ "All other pairs",
+order_by_type == 1 ~ language_pair_simplified,
     TRUE ~ "All other pairs"
   )) %>%
-  group_by(province, lang_pair_collapsed, order_by_type) %>% 
+  group_by(province, lang_pair_collapsed) %>% 
   summarize(
     percent_bilingual_children_age_0_to_4 = sum(percent_bilingual_children_age_0_to_4, na.rm = TRUE),
     percent_bilingual_children_age_5_to_9 = sum(percent_bilingual_children_age_5_to_9, na.rm = TRUE),
     percent_bilingual_children_age_0_to_9 = sum(percent_bilingual_children_age_0_to_9, na.rm = TRUE),
     percent_all_children_age_0_to_4 = sum(percent_all_children_age_0_to_4, na.rm = TRUE),
     percent_all_children_age_5_to_9 = sum(percent_all_children_age_5_to_9, na.rm = TRUE),
-    percent_all_children_age_0_to_9 = sum(percent_all_children_age_0_to_9, na.rm = TRUE)) %>%
-    arrange(province, order_by_type, -percent_bilingual_children_age_0_to_9) %>%
+    percent_all_children_age_0_to_9 = sum(percent_all_children_age_0_to_9, na.rm = TRUE)) %>% 
+  mutate(order_by_type = ifelse(str_detect(lang_pair_collapsed, "other" ),2,1)) %>%
+  arrange(province, order_by_type, -percent_bilingual_children_age_0_to_9)  %>%
   select(-order_by_type)
-
   
 ```
 
@@ -594,7 +595,7 @@ combined_table = lang_pair_by_area_wide %>% mutate(type = "cma", region = area) 
   relocate(province, area, .after= percent_all_children_age_0_to_9) 
 
 combined_table %>%
-  write_excel_csv(here("03_output", "02_tables", "Tables_language_pairs_for_computer.csv"))
+  write_excel_csv(here("03_output", "02_tables", "Tables_language_pairs_for_dashboard.csv"))
 
 ```
 
