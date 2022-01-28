@@ -1,7 +1,7 @@
 ---
 title: "Census Bilingualism - analyzing predictors of bilingualism"
 author: "Lena V. Kremin"
-date: "7/7/2021"
+date: "1/28/2022"
 output: html_document
 ---
 # Prep script
@@ -659,7 +659,7 @@ table_pct <- roc_all_table %>%
   add_row(predictor = "Number of bilingual adults in the household", .before = 1) %>% 
   rename(Characteristic = predictor)
 
-write_csv(table_pct, here("03_output/Table-Percent-Multilingual-By-Characteristic.csv"))
+#write_csv(table_pct, here("03_output/Table-Percent-Multilingual-By-Characteristic.csv"))
 
 
 ## Canada as a whole - USED IN FINAL MANUSCRIPT
@@ -680,14 +680,14 @@ canada_table_pct <- canada_all_table %>%
   left_join(canada_exp_table, by = "predictor") %>% 
   left_join(canada_exp_fr_eng_table, by = "predictor") %>% 
   left_join(canada_exp_other_table, by = "predictor") %>% 
-  mutate_if(is.numeric, round, 2) %>% 
+  mutate_if(is.numeric, round, 1) %>% 
   add_row(predictor = "Immigration generation", .before = 15) %>% 
   add_row(predictor = "Income quintile", .before = 10) %>% 
   add_row(predictor = "Highest level of parental education", .before = 5) %>% 
   add_row(predictor = "Number of bilingual adults in the household", .before = 1) %>% 
   rename(Characteristic = predictor)
 
-write_csv(canada_table_pct, here("03_output/Table-Percent-Multilingual-By-Characteristic-All-Canada.csv"))
+write_csv(canada_table_pct, here("03_output/02_tables/Table3_percent_multilingual_by_characteristic_all_Canada.csv"))
 
 
 ## prediction data
@@ -712,7 +712,7 @@ canada_table_prob <- canada_all_table %>%
   add_row(predictor = "Number of bilingual adults in the household", .before = 1) %>% 
   rename(Characteristic = predictor)
 
-write_csv(canada_table_prob, here("03_output/Table-Probabilities-All-Canada.csv"))
+write_csv(canada_table_prob, here("03_output/02_tables/Table4_probabilities_all_Canada.csv"))
 ```
 
 ##### missing data investigation
