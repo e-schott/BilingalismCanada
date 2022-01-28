@@ -247,7 +247,7 @@ province_language_pair_data = province_language_pair_data %>%
   mutate(order_by_type = ifelse(str_detect(language_pair_simplified, "Other" ),2,1),
          province = fct_expand(province, "")) %>%
   arrange(province, order_by_type, -percent_bilingual_children_age_0_to_9) %>%
-  select( -n, -total_by_age, -order_by_type) %>% # get rid of messy column name
+  select( -n, -total_by_age) %>% # get rid of unnecessary column names
   # reorder some columns
   relocate(language_pair_simplified, 
            .after = province) %>%
@@ -256,12 +256,33 @@ province_language_pair_data = province_language_pair_data %>%
 
 
 ```
+### create "All other pairs" catchall category
+
+```{r}
+table_2.2 = province_language_pair_data %>% 
+  mutate(lang_pair_collapsed = case_when(
+    order_by_type == 1 ~ language_pair_simplified,
+    TRUE ~ "All other pairs"
+  )) %>%
+  group_by(province, lang_pair_collapsed, order_by_type) %>% 
+  summarize(
+    percent_bilingual_children_age_0_to_4 = sum(percent_bilingual_children_age_0_to_4, na.rm = TRUE),
+    percent_bilingual_children_age_5_to_9 = sum(percent_bilingual_children_age_5_to_9, na.rm = TRUE),
+    percent_bilingual_children_age_0_to_9 = sum(percent_bilingual_children_age_0_to_9, na.rm = TRUE),
+    percent_all_children_age_0_to_4 = sum(percent_all_children_age_0_to_4, na.rm = TRUE),
+    percent_all_children_age_5_to_9 = sum(percent_all_children_age_5_to_9, na.rm = TRUE),
+    percent_all_children_age_0_to_9 = sum(percent_all_children_age_0_to_9, na.rm = TRUE)) %>%
+    arrange(province, order_by_type, -percent_bilingual_children_age_0_to_9) %>%
+  select(-order_by_type)
+
+  
+```
+
 
 ### write table to csv
 need to create human readable version where only the first instance of area is shown in table (e.g., first instance of "Quebec" in column "province" is shown and all subsequent quebec rows are empty in col province)
 ```{r}
 # make table human readable
-table_2.2 = province_language_pair_data
 table_2.2$province[duplicated(table_2.2$province)] <- ""
 
 table_2.2 %>%
