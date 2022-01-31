@@ -592,7 +592,8 @@ combined_table = lang_pair_by_area_wide %>% mutate(type = "cma", region = area) 
   full_join(province_language_pair_data %>% mutate(type = "province", region = province) %>% rename(language_pair_collapsed = language_pair_simplified)) %>%
   full_join(table_2.1 %>% mutate(type = "canada", region = "Canada")) %>%
   relocate(type, region, .before = language_pair_collapsed) %>%
-  relocate(province, area, .after= percent_all_children_age_0_to_9) 
+  relocate(province, area, .after= percent_all_children_age_0_to_9) %>%
+  select(-order_by_type)
 
 combined_table %>%
   write_excel_csv(here("03_output", "02_tables", "Tables_language_pairs_for_dashboard.csv"))
