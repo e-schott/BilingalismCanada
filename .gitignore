@@ -40,3 +40,5 @@ gcd_000b11a_e\.dbf
 03_output/00_processed_data/idata_raw.Rdata
 
 00_scripts/BilCan_Predictors_files/figure-html/
+
+*.afdesign
